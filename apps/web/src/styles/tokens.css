@@ -1,0 +1,74 @@
+/* Tokens da coleção "Tokens" do protótipo Fichaclin no Figma (modos Claro e Escuro). */
+:root {
+  --brand-primary: #0f766e;
+  --brand-primary-hover: #115e59;
+  --brand-primary-soft: #e3f2f0;
+  --neutral-bg: #f3f5f7;
+  --neutral-surface: #ffffff;
+  --neutral-surface-alt: #f8fafb;
+  --neutral-border: #e2e6ea;
+  --neutral-border-strong: #cbd2d9;
+  --text-default: #1c2430;
+  --text-muted: #5b6573;
+  --text-subtle: #8a94a1;
+  --text-on-primary: #ffffff;
+  --sidebar-bg: #1f2933;
+  --sidebar-text: #c3cbd4;
+  --sidebar-active: #2e3b48;
+  --success: #15803d;
+  --success-soft: #e6f4ea;
+  --warning: #b45309;
+  --warning-soft: #fcf1de;
+  --danger: #b42318;
+  --danger-soft: #fbe9e7;
+  --info: #1d4ed8;
+  --info-soft: #e8eefc;
+  --odonto-carie: #d92d20;
+  --odonto-restauracao: #2563eb;
+  --odonto-canal: #7c3aed;
+  --odonto-coroa: #d97706;
+  --odonto-extracao: #1c2430;
+  --odonto-higido: #ffffff;
+  --odonto-contorno: #9aa5b1;
+
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
+  --font: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --brand-primary: #3a8f87;
+  --brand-primary-hover: #33807a;
+  --brand-primary-soft: #1d2a29;
+  --neutral-bg: #111315;
+  --neutral-surface: #181b1f;
+  --neutral-surface-alt: #1e2227;
+  --neutral-border: #2a2f36;
+  --neutral-border-strong: #363c44;
+  --text-default: #e4e6e9;
+  --text-muted: #a0a6ae;
+  --text-subtle: #7d838b;
+  --text-on-primary: #ffffff;
+  --sidebar-bg: #15181b;
+  --sidebar-text: #a0a6ae;
+  --sidebar-active: #23272d;
+  --success: #6faf86;
+  --success-soft: #1b2620;
+  --warning: #d3a15a;
+  --warning-soft: #2a2419;
+  --danger: #e07a72;
+  --danger-soft: #2e1e1d;
+  --info: #8fa8cf;
+  --info-soft: #1c2330;
+  --odonto-carie: #d9534a;
+  --odonto-restauracao: #5b8bd6;
+  --odonto-canal: #8e73c9;
+  --odonto-coroa: #c99a4a;
+  --odonto-extracao: #e4e6e9;
+  --odonto-higido: #2a2f36;
+  --odonto-contorno: #6e757e;
+  --shadow: none;
+  color-scheme: dark;
+}
