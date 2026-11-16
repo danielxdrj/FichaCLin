@@ -1,0 +1,27 @@
+# SOMENTE AMBIENTE LOCAL — carregado automaticamente pelo `docker compose` no seu computador.
+# No Portainer, use apenas o docker-compose.yml (este arquivo não deve ir para a stack de produção).
+services:
+  db:
+    ports:
+      - "5434:5432" # para `npm run dev` e os testes acessarem o banco
+    volumes:
+      - ./apps/api/docker/initdb:/docker-entrypoint-initdb.d:ro # cria o banco fichaclin_test
+    networks: [backend, devhost]
+
+  api:
+    environment:
+      COOKIE_SECURE: "false" # http://localhost (sem TLS)
+
+  web:
+    ports: !override
+      - "8080:80" # http://localhost:8080
+
+  backup:
+    environment:
+      BACKUP_ALLOW_PLAINTEXT: "1" # dados fictícios; em produção é obrigatório AGE_RECIPIENT
+      BACKUP_INTERVAL_SECONDS: "86400"
+    volumes:
+      - ./backups:/backups
+
+networks:
+  devhost: {} # rede comum só para publicar a porta do banco no seu computador
