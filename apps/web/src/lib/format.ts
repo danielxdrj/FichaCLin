@@ -34,7 +34,8 @@ export function maskCpf(cpf: string | null | undefined): string {
   return digits.length >= 2 ? `•••.•••.•••-${digits.slice(-2)}` : '—';
 }
 
-export const ROLE_LABEL: Record<string, string> = { owner: 'Dono', dentist: 'Dentista', reception: 'Recepção' };
+/** Rótulos de apresentação. Os identificadores internos (owner, dentist, reception) não mudam. */
+export const ROLE_LABEL: Record<string, string> = { owner: 'Proprietário(a)', dentist: 'Dentista', reception: 'Recepção' };
 
 export const ACTION_LABEL: Record<string, string> = {
   'patient.view': 'Abriu o cadastro',
@@ -64,4 +65,11 @@ export const ACTION_LABEL: Record<string, string> = {
   'session.enter_clinic': 'Entrou no consultório',
   'clinic.signup': 'Criou a conta do consultório',
   'clinic.require_mfa': 'Alterou exigência de 2FA',
+  'support.ticket_create': 'Abriu chamado de suporte',
+  'support.ticket_comment': 'Comentou em chamado de suporte',
+  'support.ticket_close': 'Encerrou chamado de suporte',
+  'support.grant_expired': 'Autorização do suporte expirou',
+  'agenda.create': 'Criou compromisso na agenda',
+  'agenda.update': 'Alterou compromisso na agenda',
+  'agenda.status': 'Alterou situação de compromisso',
 };
