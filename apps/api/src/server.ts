@@ -14,6 +14,7 @@ import { exportRoutes } from './routes/export.js';
 import { userRoutes } from './routes/users.js';
 import { auditRoutes } from './routes/audit.js';
 import { supportRoutes } from './routes/support.js';
+import { agendaRoutes } from './routes/agenda.js';
 
 export async function buildApp(opts: { logger?: boolean } = {}): Promise<FastifyInstance> {
   const app = Fastify({
@@ -91,6 +92,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   await app.register(userRoutes);
   await app.register(auditRoutes);
   await app.register(supportRoutes);
+  await app.register(agendaRoutes);
 
   return app;
 }

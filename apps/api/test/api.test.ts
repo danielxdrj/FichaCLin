@@ -327,7 +327,7 @@ describe('Auditoria — REQ-07 / REQ-22 / REQ-30 / REQ-33', () => {
     const g = await s.call('POST', '/api/support/grants', { reason: 'Investigar erro na exportação', hours: 4 });
     expect(g.status).toBe(201);
     const support = (await s.call('GET', '/api/support')).body;
-    expect(support.grants[0].active).toBe(true);
+    expect(support.grants[0]).toMatchObject({ status: 'ativa', durationHours: 4, grantedBy: 'Dra. Helena Prado' });
     expect(support.dpo.email).toBeTruthy();
     expect((await s.call('GET', '/api/audit?action=support')).body.events[0].action).toBe('support.grant');
   });
