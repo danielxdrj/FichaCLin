@@ -4,6 +4,8 @@ import { api } from '../lib/api';
 import { formatDate, formatDateTime } from '../lib/format';
 import { ErrorAlert } from '../components/ui';
 import { STATUS } from './record/OdontogramTab';
+import { CONSENT_LABELS } from './PatientForm';
+import { consentDetail, consentStatus } from '../lib/consent';
 
 /**
  * REQ-06: exportação do prontuário — dados estruturados (JSON) e versão imprimível/PDF.
@@ -60,7 +62,7 @@ export function ExportPage() {
         <h2>Consentimentos</h2>
         <table><tbody>
           {data.consents.map((c: any) => (
-            <tr key={c.purpose}><th>{c.purpose}</th><td>{c.granted ? 'Autorizado' : 'Não autorizado'} por {c.grantedByName} ({c.grantedByRelation}) em {formatDateTime(c.createdAt)} · {c.textVersion}</td></tr>
+            <tr key={c.purpose}><th>{CONSENT_LABELS[c.purpose as keyof typeof CONSENT_LABELS] ?? c.purpose}</th><td><strong>{consentStatus(c)}</strong><br />{consentDetail(c)}</td></tr>
           ))}
         </tbody></table>
 
