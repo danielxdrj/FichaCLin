@@ -1,0 +1,39 @@
+# SITE_ADDRESS:
+#   local:     :80  (padrão, HTTP — acesse http://localhost:8080)
+#   produção:  app.seudominio.com.br  → Caddy emite e renova o certificado TLS sozinho (REQ-27)
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		-Server
+	}
+
+	# Front e API na mesma origem: o cookie de sessão e a proteção CSRF funcionam sem CORS (ADR-002).
+	handle /api/* {
+		reverse_proxy api:3333
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	# Log de acesso do proxy sem cabeçalhos (cookies não vão para o log).
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>headers delete
+				resp_headers delete
+			}
+		}
+	}
+}

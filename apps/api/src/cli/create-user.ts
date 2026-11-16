@@ -8,8 +8,8 @@
  * 2FA: dono e dentista cadastram o aplicativo autenticador no primeiro login (REQ-24).
  */
 import pg from 'pg';
-import { config } from '../src/config.js';
-import { hashPassword, passwordProblems } from '../src/services/password.js';
+import { config } from '../config.js';
+import { hashPassword, passwordProblems } from '../services/password.js';
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);

@@ -1,22 +1,122 @@
-# Ambiente local. Em produção, o TLS fica no proxy reverso (REQ-27) e o volume do banco
-# deve estar em disco criptografado (REQ-28), em datacenter no Brasil (REQ-13).
+# Stack do Fichaclin (ADR-002): a MESMA estrutura roda localmente e na VPS (Portainer).
+#
+#   web     Caddy: HTTPS, front (build do Vite) e proxy de /api → api
+#   api     backend Node (papel fichaclin_app, sujeito ao RLS)
+#   migrate job que aplica as migrações com o papel dono e termina antes da api subir
+#   db      PostgreSQL 16, só na rede interna (sem porta pública)
+#   backup  dump diário criptografado, enviado para fora da VPS
+#
+# Local:     copie .env.example para .env e rode `docker compose up -d --build`
+#            (o docker-compose.override.yml é carregado automaticamente e só existe para uso local)
+# Portainer: use apenas este arquivo e preencha as variáveis da stack (ver docs/deploy/PRODUCAO.md).
+
+name: fichaclin
+
+x-api-env: &api-env
+  NODE_ENV: production
+  API_PORT: "3333"
+  DATABASE_URL: postgres://fichaclin_app:${APP_DB_PASSWORD:?defina APP_DB_PASSWORD}@db:5432/fichaclin
+  DATABASE_OWNER_URL: postgres://fichaclin_owner:${DB_OWNER_PASSWORD:?defina DB_OWNER_PASSWORD}@db:5432/fichaclin
+  APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+  COOKIE_SECURE: ${COOKIE_SECURE:-true}
+  DPO_NAME: ${DPO_NAME:-Encarregado (a definir)}
+  DPO_EMAIL: ${DPO_EMAIL:-encarregado@fichaclin.example}
+
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: fichaclin
       POSTGRES_USER: fichaclin_owner
-      POSTGRES_PASSWORD: ${DB_OWNER_PASSWORD:-dev_owner_password}
-    ports:
-      - "5434:5432"
+      POSTGRES_PASSWORD: ${DB_OWNER_PASSWORD}
     volumes:
       - fichaclin_db:/var/lib/postgresql/data
-      - ./apps/api/docker/initdb:/docker-entrypoint-initdb.d:ro
+    networks: [backend]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U fichaclin_owner -d fichaclin"]
       interval: 5s
       timeout: 3s
-      retries: 10
+      retries: 20
+
+  migrate:
+    image: fichaclin-api:${FICHACLIN_VERSION:-local}
+    build:
+      context: .
+      dockerfile: deploy/api.Dockerfile
+    command: ["node", "apps/api/dist/db/migrate.js"]
+    environment: *api-env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [backend]
+    restart: "no"
+
+  api:
+    image: fichaclin-api:${FICHACLIN_VERSION:-local}
+    restart: unless-stopped
+    environment: *api-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks: [backend, frontend]
+
+  web:
+    image: fichaclin-web:${FICHACLIN_VERSION:-local}
+    build:
+      context: .
+      dockerfile: deploy/web.Dockerfile
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [frontend]
+
+  backup:
+    image: fichaclin-backup:${FICHACLIN_VERSION:-local}
+    build:
+      context: .
+      dockerfile: deploy/backup.Dockerfile
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: fichaclin_owner
+      PGPASSWORD: ${DB_OWNER_PASSWORD}
+      PGDATABASE: fichaclin
+      TZ: America/Sao_Paulo
+      AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:-}
+      BACKUP_ALLOW_PLAINTEXT: ${BACKUP_ALLOW_PLAINTEXT:-0}
+      RCLONE_REMOTE: ${BACKUP_RCLONE_REMOTE:-}
+      RCLONE_CONFIG_BACKUP_TYPE: ${BACKUP_RCLONE_TYPE:-}
+      RCLONE_CONFIG_BACKUP_PROVIDER: ${BACKUP_RCLONE_PROVIDER:-}
+      RCLONE_CONFIG_BACKUP_ENDPOINT: ${BACKUP_RCLONE_ENDPOINT:-}
+      RCLONE_CONFIG_BACKUP_ACCESS_KEY_ID: ${BACKUP_RCLONE_ACCESS_KEY_ID:-}
+      RCLONE_CONFIG_BACKUP_SECRET_ACCESS_KEY: ${BACKUP_RCLONE_SECRET_ACCESS_KEY:-}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-7}
+    volumes:
+      - backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [backend, egress]
+
+networks:
+  backend:
+    internal: true # db, api, migrate e backup — sem saída para a internet
+  frontend: {}     # web ↔ api
+  egress: {}       # só o backup sai para a internet (envio para fora da VPS)
 
 volumes:
-  fichaclin_db:
+  fichaclin_db: # mesmo nome do volume usado desde o início (preserva os dados locais)
+  caddy_data:
+  caddy_config:
+  backups:

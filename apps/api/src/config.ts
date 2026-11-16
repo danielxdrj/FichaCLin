@@ -26,6 +26,8 @@ export const config = {
     name: process.env.DPO_NAME ?? 'Encarregado (a definir)',
     email: process.env.DPO_EMAIL ?? 'encarregado@fichaclin.example',
   },
+  // REQ-27: cookies só por HTTPS em produção. COOKIE_SECURE=false apenas para a stack local em http://localhost.
+  cookieSecure: process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === 'true' : isProd,
   session: { ttlHours: 12, cookieName: 'fc_session' },
   login: { maxAttempts: 5, lockMinutes: 15 }, // REQ-25
 };

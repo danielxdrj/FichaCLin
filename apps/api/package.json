@@ -12,7 +12,7 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
     "dev:totp": "tsx scripts/dev-totp.ts",
-    "user:create": "tsx scripts/create-user.ts"
+    "user:create": "tsx src/cli/create-user.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
