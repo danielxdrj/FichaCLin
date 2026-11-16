@@ -126,7 +126,7 @@ export function PatientFormPage() {
           </Card>
 
           {minor && (
-            <Card title={<>Responsável legal <span className="tag warning">Obrigatório para menores</span></>}>
+            <Card title={<>Responsável legal <span className="subtle" style={{ fontWeight: 400 }}>obrigatório para menores</span></>}>
               <div className="form-grid">
                 <div className="col-12 alert warning">
                   Paciente menor de idade: o responsável assina o prontuário, recebe a cópia e decide sobre os consentimentos (LGPD art. 14).

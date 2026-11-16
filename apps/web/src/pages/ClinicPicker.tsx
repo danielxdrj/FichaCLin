@@ -35,14 +35,12 @@ export function ClinicPickerPage() {
           {me?.clinics.length === 0 && <div className="alert warning">Você ainda não tem vínculo com nenhum consultório.</div>}
           {me?.clinics.map((c) => (
             <button key={c.id} className="clinic-option" onClick={() => choose(c.id)}>
-              <div className="avatar">{c.name.slice(0, 2).toUpperCase()}</div>
               <div style={{ flex: 1 }}>
-                <strong>{c.name}</strong>
+                <span style={{ fontWeight: 500 }}>{c.name}</span>
                 <div className="subtle">{ROLE_LABEL[c.role]}{c.city ? ` · ${c.city}` : ''}</div>
               </div>
-              {c.billingStatus === 'suspended' && <span className="tag danger">Suspenso</span>}
-              {c.billingStatus === 'trial' && <span className="tag info">Teste</span>}
-              {c.billingStatus === 'active' && <span className="tag success">Ativo</span>}
+              {c.billingStatus === 'suspended' && <span className="status bad">Suspenso</span>}
+              {c.billingStatus === 'trial' && <span className="subtle">Período de teste</span>}
             </button>
           ))}
           <ErrorAlert error={error} />

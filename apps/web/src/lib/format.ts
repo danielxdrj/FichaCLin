@@ -54,6 +54,7 @@ export const ACTION_LABEL: Record<string, string> = {
   'anamnesis.create': 'Registrou anamnese',
   'anamnesis_template.create': 'Publicou modelo de anamnese',
   'record.export': 'Exportou o prontuário',
+  'record.export_bulk': 'Exportou prontuários em lote',
   'membership.create': 'Adicionou usuário',
   'membership.role_changed': 'Alterou papel',
   'membership.permissions_changed': 'Alterou permissões',

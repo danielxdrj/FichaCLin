@@ -111,7 +111,7 @@ function ClinicTab() {
           </fieldset>
           {editable && (
             <div className="row" style={{ marginTop: 16 }}>
-              {msg && <span className="tag success">{msg}</span>}
+              {msg && <Status tone="ok">{msg}</Status>}
               <span className="spacer" />
               <button className="btn btn-primary">Salvar alterações</button>
             </div>
@@ -123,11 +123,11 @@ function ClinicTab() {
         <Card title="Acordo de Tratamento de Dados (DPA)">
           {!c.dpa ? <p className="muted">Nenhum DPA publicado.</p> : (
             <div className="stack">
-              <div className="row">
-                <span className="tag">v{c.dpa.version}</span>
+              <div className="row wrap">
                 {c.dpa.acceptedAt
-                  ? <span className="tag success">Aceito por {c.dpa.acceptedBy} em {formatDate(c.dpa.acceptedAt)}</span>
-                  : <span className="tag warning">Pendente</span>}
+                  ? <Status tone="ok">Aceito por {c.dpa.acceptedBy} em {formatDate(c.dpa.acceptedAt)}</Status>
+                  : <Status tone="warn">Pendente de aceite</Status>}
+                <span className="subtle">Versão {c.dpa.version}</span>
               </div>
               <p className="subtle">Define o Fichaclin como operador e o consultório como controlador dos dados dos pacientes.</p>
               <button type="button" className="btn btn-sm" onClick={async () => setDpaText(dpaText ? null : (await api('/legal/dpa')).body)}>
@@ -178,7 +178,7 @@ function SecurityTab() {
   return (
     <div className="grid-2">
       <div className="stack">
-        <Card title={<>Verificação em duas etapas (2FA) {enabled ? <span className="tag success">Ativada</span> : <span className="tag warning">Desativada</span>}</>}>
+        <Card title={<>Verificação em duas etapas (2FA) {enabled ? <Status tone="ok">Ativada</Status> : <Status tone="warn">Desativada</Status>}</>}>
           {!enabled && !enabling && (
             <div className="stack">
               <p className="muted">

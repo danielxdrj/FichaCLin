@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, patch, post } from '../lib/api';
-import { initials, ROLE_LABEL } from '../lib/format';
+import { ROLE_LABEL } from '../lib/format';
 import { useSession } from '../lib/session';
 import {
   ConfirmDialog, EmptyState, ErrorAlert, Field, Input, Loading, Modal, Segmented, Select, Status, useToast,
@@ -104,8 +104,8 @@ export function UsersPage() {
       <ErrorAlert error={error} />
       {!users || !catalog ? <Loading /> : (
         <div className="master-detail">
-          <div className="panel">
-            <div className="panel-pad row wrap" style={{ justifyContent: 'space-between', paddingBottom: 12 }}>
+          <div>
+            <div className="toolbar">
               <Segmented<Filter> label="Filtrar usuários" value={filter} onChange={setFilter} options={[
                 ['todos', `Todos (${counts.todos})`], ['ativos', `Ativos (${counts.ativos})`], ['inativos', `Inativos (${counts.inativos})`],
               ]} />
@@ -124,13 +124,8 @@ export function UsersPage() {
                           aria-selected={isSel} onClick={() => select(u)}
                           onKeyDown={(e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(u); } }}>
                           <td>
-                            <div className="row">
-                              <div className="avatar">{initials(u.name)}</div>
-                              <div style={{ minWidth: 0 }}>
-                                <strong>{u.name}</strong>{u.userId === me?.user.id && <span className="subtle"> (você)</span>}
-                                <div className="subtle">{u.email}</div>
-                              </div>
-                            </div>
+                            <span className="primary">{u.name}</span>{u.userId === me?.user.id && <span className="subtle"> (você)</span>}
+                            <div className="subtle">{u.email}</div>
                           </td>
                           <td>{ROLE_LABEL[u.role]}{u.permissions && u.role !== 'owner' && <div className="subtle">personalizado</div>}</td>
                           <td>{u.active ? <Status tone="ok">Ativo</Status> : <Status tone="off">Inativo</Status>}</td>
@@ -197,7 +192,6 @@ function UserDetail({ user, catalog, isSelf, readOnly, busy, onRole, onPerms, on
     <div className="panel">
       <div className="panel-pad stack" style={{ gap: 14 }}>
         <div className="row" style={{ alignItems: 'flex-start' }}>
-          <div className="avatar" style={{ width: 40, height: 40, fontSize: 14 }}>{initials(user.name)}</div>
           <div style={{ minWidth: 0, flex: 1 }}>
             <h2 style={{ fontSize: 16 }}>{user.name}</h2>
             <div className="subtle">{user.email}{user.cro ? ` · ${user.cro}` : ''}</div>

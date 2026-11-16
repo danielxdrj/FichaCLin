@@ -3,7 +3,7 @@ import { api, post } from '../../lib/api';
 import { formatDateTime } from '../../lib/format';
 import { useSession } from '../../lib/session';
 import { Icon } from '../../components/Icon';
-import { Card, ErrorAlert, Field, Input, Textarea } from '../../components/ui';
+import { Card, ErrorAlert, Field, Input, Status, Textarea } from '../../components/ui';
 import type { Patient } from '../PatientRecord';
 import { STATUS } from './OdontogramTab';
 
@@ -72,10 +72,10 @@ export function HistoryTab({ patient, readOnly }: { patient: Patient; readOnly: 
               </div>
               <div className="stack" style={{ gap: 6 }}>
                 <div className="row wrap">
-                  <strong>{e.kind === 'odontogram' ? 'Odontograma atualizado' : e.content.title}</strong>
+                  <strong style={{ fontWeight: 500 }}>{e.kind === 'odontogram' ? 'Odontograma atualizado' : e.content.title}</strong>
                   {e.signedAt
-                    ? <span className="tag success"><Icon name="lock" size={12} /> Assinado</span>
-                    : <span className="tag warning">Rascunho</span>}
+                    ? <span className="subtle row" style={{ gap: 4 }}><Icon name="lock" size={12} /> Assinado</span>
+                    : <Status tone="warn">Rascunho</Status>}
                 </div>
                 {e.kind === 'evolution' && <p style={{ whiteSpace: 'pre-wrap' }}>{e.content.text}</p>}
                 {e.kind === 'odontogram' && (

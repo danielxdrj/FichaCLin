@@ -50,16 +50,21 @@ export function Textarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea className="textarea" {...props} />;
 }
 
+/**
+ * Bloco de conteúdo com título. Desenhado como seção plana (título + linha fina), sem moldura:
+ * a página não vira uma pilha de cartões. Para uma caixa com borda de fato, use a classe .panel.
+ */
 export function Card({ title, actions, children, bodyClass }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; bodyClass?: string }) {
+  const body = bodyClass === undefined || bodyClass === 'card-body' ? 'block-body' : bodyClass;
   return (
-    <section className="card">
+    <section className="block">
       {title !== undefined && (
-        <div className="card-head">
+        <div className="block-head">
           <h2>{title}</h2>
           {actions}
         </div>
       )}
-      <div className={bodyClass ?? 'card-body'}>{children}</div>
+      <div className={body}>{children}</div>
     </section>
   );
 }

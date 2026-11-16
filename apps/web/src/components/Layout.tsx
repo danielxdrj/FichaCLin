@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { post } from '../lib/api';
-import { initials, ROLE_LABEL } from '../lib/format';
+import { ROLE_LABEL } from '../lib/format';
 import { useSession } from '../lib/session';
 import { Icon } from './Icon';
 
@@ -92,7 +92,6 @@ export function Layout() {
 
         <div className="sidebar-footer">
           <div className="user" title={collapsed ? `${me.user.name} · ${ROLE_LABEL[me.current.role]}` : undefined}>
-            <div className="avatar">{initials(me.user.name)}</div>
             <div className="user-text" style={{ minWidth: 0 }}>
               <strong>{me.user.name}</strong>
               <small>{ROLE_LABEL[me.current.role]}{me.user.cro ? ` · ${me.user.cro}` : ''}</small>
@@ -111,9 +110,9 @@ export function Layout() {
             <button className="icon-btn menu-btn" onClick={() => setDrawerOpen(true)} aria-label="Abrir menu" aria-expanded={drawerOpen}>
               <Icon name="menu" />
             </button>
-            <strong style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{clinic?.name}</strong>
+            <span className="topbar-clinic">{clinic?.name}</span>
             {suspended && <span className="status bad">Suspenso</span>}
-            {me.current.billingStatus === 'trial' && <span className="status info">Período de teste</span>}
+            {me.current.billingStatus === 'trial' && <span className="topbar-plan">Período de teste</span>}
           </div>
           {me.clinics.length > 1 && (
             <button className="btn btn-sm btn-ghost" onClick={switchClinic}>
@@ -122,18 +121,17 @@ export function Layout() {
           )}
         </header>
         {!me.mfa.enabled && (
-          <div className="alert info" style={{ borderRadius: 0, alignItems: 'center' }}>
-            <Icon name="shield" />
-            <span style={{ flex: 1 }}>
-              Recomendamos ativar a verificação em duas etapas (2FA) para proteger os prontuários do consultório.
-            </span>
-            <NavLink className="btn btn-sm" to="/configuracoes/seguranca">Ativar</NavLink>
+          <div className="notice-bar" role="note">
+            <Icon name="shield" size={16} />
+            <span><strong>Segurança da conta</strong> · Verificação em duas etapas não configurada.</span>
+            <NavLink to="/configuracoes/seguranca">Ativar</NavLink>
           </div>
         )}
         {suspended && (
-          <div className="alert danger" style={{ borderRadius: 0 }}>
-            <Icon name="lock" /> Consultório suspenso por inadimplência: acesso somente leitura. A exportação dos
-            prontuários e o suporte continuam disponíveis.
+          <div className="notice-bar danger" role="alert">
+            <Icon name="lock" size={16} />
+            <span><strong>Consultório suspenso por inadimplência</strong> · Acesso somente leitura. A exportação dos
+              prontuários e o suporte continuam disponíveis.</span>
           </div>
         )}
         <main className="content" id="conteudo">
