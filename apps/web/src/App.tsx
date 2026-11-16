@@ -10,8 +10,8 @@ import { PatientFormPage } from './pages/PatientForm';
 import { PatientRecordPage } from './pages/PatientRecord';
 import { ExportPage } from './pages/Export';
 import { SettingsPage } from './pages/Settings';
-import { UsersPage } from './pages/Users';
-import { TemplateEditorPage } from './pages/TemplateEditor';
+import { SupportPage } from './pages/Support';
+import { AgendaPage } from './pages/Agenda';
 import { AuditPage } from './pages/Audit';
 
 /**
@@ -35,10 +35,15 @@ export function App() {
         <Route path="/pacientes/novo" element={<PatientFormPage />} />
         <Route path="/pacientes/:id/editar" element={<PatientFormPage />} />
         <Route path="/pacientes/:id/:tab?" element={<PatientRecordPage />} />
-        <Route path="/configuracoes/:tab?" element={<SettingsPage />} />
-        <Route path="/usuarios" element={<UsersPage />} />
-        <Route path="/modelo-anamnese" element={<TemplateEditorPage />} />
+        <Route path="/agenda" element={<AgendaPage />} />
+        <Route path="/suporte" element={<SupportPage />} />
+        <Route path="/suporte/:ticketId" element={<SupportPage />} />
         <Route path="/auditoria" element={<AuditPage />} />
+        <Route path="/configuracoes/:tab?" element={<SettingsPage />} />
+        {/* Endereços antigos continuam funcionando */}
+        <Route path="/usuarios" element={<Navigate to="/configuracoes/usuarios" replace />} />
+        <Route path="/modelo-anamnese" element={<Navigate to="/configuracoes/anamnese" replace />} />
+        <Route path="/configuracoes/suporte" element={<Navigate to="/suporte" replace />} />
         <Route path="*" element={<Navigate to="/pacientes" replace />} />
       </Route>
     </Routes>

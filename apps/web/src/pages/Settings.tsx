@@ -6,26 +6,43 @@ import { useSession } from '../lib/session';
 import { getThemePref, setThemePref, type ThemePref } from '../lib/theme';
 import { Card, ErrorAlert, Field, Input, PageHead, Select, Toggle } from '../components/ui';
 import { TwoFactorSetup } from '../components/TwoFactorSetup';
+import { UsersPage } from './Users';
+import { TemplateEditorPage } from './TemplateEditor';
 
-const TABS: [string, string][] = [
-  ['consultorio', 'Consultório'], ['seguranca', 'Segurança'], ['aparencia', 'Aparência'], ['suporte', 'Suporte'], ['plano', 'Plano'],
+/**
+ * Configurações = administração do sistema. Módulos operacionais (Pacientes, Agenda, Suporte, Auditoria)
+ * ficam no menu principal; aqui só o que é configuração. Abas aparecem conforme a permissão,
+ * e cada rota da API valida a permissão de novo (o front não é barreira de segurança).
+ */
+const TABS: { key: string; label: string; perm?: string }[] = [
+  { key: 'consultorio', label: 'Consultório' },
+  { key: 'usuarios', label: 'Usuários e papéis', perm: 'users:manage' },
+  { key: 'anamnese', label: 'Modelo de anamnese', perm: 'anamnesis:template' },
+  { key: 'seguranca', label: 'Segurança' },
+  { key: 'aparencia', label: 'Aparência' },
+  { key: 'plano', label: 'Plano' },
 ];
 
 export function SettingsPage() {
   const { tab = 'consultorio' } = useParams();
+  const { can } = useSession();
+  const tabs = TABS.filter((t) => !t.perm || can(t.perm));
+  const current = tabs.find((t) => t.key === tab) ? tab : 'consultorio';
   return (
     <>
-      <PageHead title="Configurações" />
-      <nav className="tabs">
-        {TABS.map(([k, label]) => (
-          <NavLink key={k} to={`/configuracoes/${k}`} className={() => `tab ${tab === k ? 'active' : ''}`}>{label}</NavLink>
+      <PageHead title="Configurações" subtitle="Administração do consultório e da sua conta." />
+      <nav className="tabs" aria-label="Seções de configurações">
+        {tabs.map((t) => (
+          <NavLink key={t.key} to={`/configuracoes/${t.key}`} className={() => `tab ${current === t.key ? 'active' : ''}`}
+            aria-current={current === t.key ? 'page' : undefined}>{t.label}</NavLink>
         ))}
       </nav>
-      {tab === 'consultorio' && <ClinicTab />}
-      {tab === 'seguranca' && <SecurityTab />}
-      {tab === 'aparencia' && <AppearanceTab />}
-      {tab === 'suporte' && <SupportTab />}
-      {tab === 'plano' && <PlanTab />}
+      {current === 'consultorio' && <ClinicTab />}
+      {current === 'usuarios' && <UsersPage />}
+      {current === 'anamnese' && <TemplateEditorPage />}
+      {current === 'seguranca' && <SecurityTab />}
+      {current === 'aparencia' && <AppearanceTab />}
+      {current === 'plano' && <PlanTab />}
     </>
   );
 }
@@ -241,82 +258,6 @@ function AppearanceTab() {
       </div>
       <p className="subtle" style={{ marginTop: 12 }}>A preferência fica salva só neste navegador.</p>
     </Card>
-  );
-}
-
-/** 12 — Suporte: canal do encarregado (REQ-10) e autorização de acesso (REQ-30). */
-function SupportTab() {
-  const { can } = useSession();
-  const [data, setData] = useState<any>(null);
-  const [form, setForm] = useState({ reason: '', hours: 4 });
-  const [error, setError] = useState<unknown>(null);
-  const load = useCallback(() => { api('/support').then(setData).catch(setError); }, []);
-  useEffect(load, [load]);
-
-  async function grant(e: FormEvent) {
-    e.preventDefault();
-    try {
-      await post('/support/grants', form);
-      setForm({ reason: '', hours: 4 });
-      load();
-    } catch (err) {
-      setError(err);
-    }
-  }
-
-  if (!data) return <ErrorAlert error={error} />;
-  return (
-    <div className="grid-2">
-      <div className="stack">
-        {can('support:manage') && (
-          <Card title="Autorizar acesso do suporte">
-            <form className="stack" onSubmit={grant}>
-              <p className="subtle">
-                A equipe do Fichaclin só acessa o ambiente do consultório com autorização sua, por prazo limitado.
-                Toda autorização fica registrada na auditoria.
-              </p>
-              <Field label="Motivo"><Input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Ex.: erro ao exportar prontuário" required /></Field>
-              <Field label="Validade">
-                <Select value={String(form.hours)} onChange={(e) => setForm({ ...form, hours: Number(e.target.value) })}
-                  options={[['1', '1 hora'], ['4', '4 horas'], ['24', '24 horas'], ['72', '72 horas']]} />
-              </Field>
-              <ErrorAlert error={error} />
-              <div className="row"><span className="spacer" /><button className="btn btn-primary" disabled={form.reason.trim().length < 5}>Autorizar</button></div>
-            </form>
-          </Card>
-        )}
-        {can('support:manage') && (
-          <Card title="Autorizações" bodyClass="">
-            {data.grants.length === 0 ? <div className="empty">Nenhuma autorização.</div> : (
-              <table className="table">
-                <thead><tr><th>Motivo</th><th>Por</th><th>Validade</th><th /></tr></thead>
-                <tbody>
-                  {data.grants.map((g: any) => (
-                    <tr key={g.id}>
-                      <td>{g.reason}</td>
-                      <td>{g.grantedBy}</td>
-                      <td>{g.active ? <span className="tag success">até {formatDateTime(g.expiresAt)}</span> : <span className="tag">{g.revokedAt ? 'Revogada' : 'Expirada'}</span>}</td>
-                      <td>{g.active && <button className="btn btn-sm" onClick={async () => { await post(`/support/grants/${g.id}/revoke`); load(); }}>Revogar</button>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </Card>
-        )}
-      </div>
-      <div className="stack">
-        <Card title="Encarregado de dados (DPO)">
-          <dl className="kv">
-            <dt>Nome</dt><dd>{data.dpo.name}</dd>
-            <dt>E-mail</dt><dd><a href={`mailto:${data.dpo.email}`}>{data.dpo.email}</a></dd>
-          </dl>
-          <p className="subtle" style={{ marginTop: 12 }}>
-            Pacientes que queiram exercer direitos da LGPD devem procurar o consultório, que é o controlador dos dados.
-          </p>
-        </Card>
-      </div>
-    </div>
   );
 }
 
