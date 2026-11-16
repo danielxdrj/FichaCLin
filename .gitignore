@@ -1,0 +1,30 @@
+# Dependências e builds
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Ambiente e segredos (nunca versionar — ver docs/conformidade/MATRIZ.md, REQ-18)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Dados reais de pacientes nunca entram no Git
+uploads/
+storage/
+backups/
+*.dump
+*.sql.gz
+exports/
+
+# Sistema / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
