@@ -28,10 +28,15 @@ export async function loadPatient(db: PoolClient, id: string) {
 
 /** Consentimento vigente = último registro de cada finalidade (histórico preservado). */
 export async function currentConsents(db: PoolClient, patientId: string) {
+  // isInitial: única decisão registrada é a do cadastro (consentimento nasce desmarcado — REQ-15),
+  // ou seja, "não autorizado" por padrão, sem que o titular tenha sido perguntado de novo.
   const { rows } = await db.query(
-    `SELECT DISTINCT ON (purpose) purpose, granted, text_version AS "textVersion",
-            granted_by_name AS "grantedByName", granted_by_relation AS "grantedByRelation", created_at AS "createdAt"
-       FROM patient_consents WHERE patient_id = $1 ORDER BY purpose, created_at DESC`,
+    `SELECT DISTINCT ON (c.purpose) c.purpose, c.granted, c.text_version AS "textVersion",
+            c.granted_by_name AS "grantedByName", c.granted_by_relation AS "grantedByRelation",
+            c.created_at AS "createdAt", u.name AS "collectedBy",
+            (SELECT count(*) FROM patient_consents x WHERE x.patient_id = c.patient_id AND x.purpose = c.purpose) = 1 AS "isInitial"
+       FROM patient_consents c JOIN users u ON u.id = c.collected_by
+      WHERE c.patient_id = $1 ORDER BY c.purpose, c.created_at DESC`,
     [patientId],
   );
   return rows;

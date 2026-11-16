@@ -15,6 +15,7 @@ export const CATEGORY_LABEL: Record<string, string> = {
   seguranca: 'Problema de segurança',
   duvida: 'Dúvida sobre o sistema',
   orientacao: 'Solicitação de orientação',
+  sugestao: 'Sugestão de melhoria ou nova área',
   outro: 'Outro(a)',
 };
 const PRIORITY_LABEL: Record<string, string> = { baixa: 'Baixa', normal: 'Normal', alta: 'Alta', critica: 'Crítica' };
@@ -51,7 +52,7 @@ export function SupportPage() {
   const navigate = useNavigate();
   const [data, setData] = useState<SupportData | null>(null);
   const [error, setError] = useState<unknown>(null);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState<string | null>(null); // categoria inicial do formulário
   const [granting, setGranting] = useState<{ ticketId?: string } | null>(null);
   const [revoking, setRevoking] = useState<Grant | null>(null);
   const toast = useToast();
@@ -72,9 +73,16 @@ export function SupportPage() {
       <PageHead
         title="Suporte"
         subtitle="Canal oficial de atendimento do Fichaclin. Acompanhe aqui suas solicitações."
-        actions={<button className="btn btn-primary" onClick={() => setCreating(true)}>Nova solicitação</button>}
+        actions={<>
+          <button className="btn" onClick={() => setCreating('sugestao')}>Sugerir melhoria</button>
+          <button className="btn btn-primary" onClick={() => setCreating('')}>Nova solicitação</button>
+        </>}
       />
       <ErrorAlert error={error} />
+      <p className="muted" style={{ marginTop: -8, marginBottom: 20 }}>
+        Sentiu falta de alguma área ou tem uma ideia para o Fichaclin? Use <strong>Sugerir melhoria</strong>: toda
+        sugestão é lida pela equipe e respondida no histórico da solicitação.
+      </p>
       {!data ? <Loading /> : (
         <>
           <div className={ticketId ? 'master-detail' : ''}>
@@ -170,9 +178,9 @@ export function SupportPage() {
         </>
       )}
 
-      {creating && (
-        <NewTicketModal onClose={() => setCreating(false)} onDone={async (r) => {
-          setCreating(false);
+      {creating !== null && (
+        <NewTicketModal initialCategory={creating} onClose={() => setCreating(null)} onDone={async (r) => {
+          setCreating(null);
           await load();
           toast.show(`Solicitação #${r.number} criada.`);
           navigate(`/suporte/${r.id}`);
@@ -306,8 +314,9 @@ function TicketDetail({ id, canManage, onChanged, onClose, onGrant, toast }: {
   );
 }
 
-function NewTicketModal({ onClose, onDone }: { onClose: () => void; onDone: (r: { id: string; number: number }) => void }) {
-  const [form, setForm] = useState({ category: '', categoryOther: '', priority: 'normal', subject: '', description: '' });
+function NewTicketModal({ initialCategory, onClose, onDone }: { initialCategory: string; onClose: () => void; onDone: (r: { id: string; number: number }) => void }) {
+  const [form, setForm] = useState({ category: initialCategory, categoryOther: '', priority: initialCategory === 'sugestao' ? 'baixa' : 'normal', subject: '', description: '' });
+  const suggestion = form.category === 'sugestao';
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof form, v: string) => setForm({ ...form, [k]: v });
@@ -326,7 +335,7 @@ function NewTicketModal({ onClose, onDone }: { onClose: () => void; onDone: (r: 
   }
 
   return (
-    <Modal title="Nova solicitação" onClose={onClose}>
+    <Modal title={suggestion ? 'Sugerir melhoria' : 'Nova solicitação'} onClose={onClose}>
       <form className="stack" onSubmit={submit}>
         <div className="form-grid">
           <Field className="col-8" label="Motivo">
@@ -349,7 +358,9 @@ function NewTicketModal({ onClose, onDone }: { onClose: () => void; onDone: (r: 
           )}
         </div>
         <Field label="Assunto"><Input value={form.subject} maxLength={140} onChange={(e) => set('subject', e.target.value)} required /></Field>
-        <Field label="Descrição" hint="Não inclua dados de pacientes (nome, CPF ou informações clínicas). Descreva a tela e o que aconteceu.">
+        <Field label="Descrição" hint={suggestion
+          ? 'Conte o que você gostaria de fazer no sistema e por quê. Não inclua dados de pacientes.'
+          : 'Não inclua dados de pacientes (nome, CPF ou informações clínicas). Descreva a tela e o que aconteceu.'}>
           <Textarea value={form.description} maxLength={5000} onChange={(e) => set('description', e.target.value)} required />
         </Field>
         <p className="subtle">Anexos ainda não estão disponíveis: arquivos só serão aceitos quando o armazenamento criptografado estiver em produção.</p>

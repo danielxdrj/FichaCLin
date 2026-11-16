@@ -16,7 +16,7 @@ import { badRequest, notFound } from '../http/errors.js';
  * A prioridade é só informativa para a fila; não altera nenhuma regra de acesso.
  */
 
-export const CATEGORIES = ['problema_tecnico', 'erro_funcionalidade', 'acesso', 'seguranca', 'duvida', 'orientacao', 'outro'] as const;
+export const CATEGORIES = ['problema_tecnico', 'erro_funcionalidade', 'acesso', 'seguranca', 'duvida', 'orientacao', 'sugestao', 'outro'] as const;
 export const PRIORITIES = ['baixa', 'normal', 'alta', 'critica'] as const;
 export const STATUSES = ['aberta', 'em_analise', 'aguardando_cliente', 'resolvida', 'encerrada'] as const;
 const MAX_GRANT_HOURS = 72;

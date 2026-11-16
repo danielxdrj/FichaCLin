@@ -4,8 +4,9 @@ import { api, post, put } from '../lib/api';
 import { formatDate, formatDateTime } from '../lib/format';
 import { useSession } from '../lib/session';
 import { getThemePref, setThemePref, type ThemePref } from '../lib/theme';
-import { Card, ErrorAlert, Field, Input, PageHead, Select, Toggle } from '../components/ui';
+import { Card, ErrorAlert, Field, Input, Loading, PageHead, Section, Select, Status, Toggle } from '../components/ui';
 import { TwoFactorSetup } from '../components/TwoFactorSetup';
+import { ExportAllButton } from '../components/ExportAll';
 import { UsersPage } from './Users';
 import { TemplateEditorPage } from './TemplateEditor';
 
@@ -263,36 +264,56 @@ function AppearanceTab() {
 
 /** 13 — Plano. Inadimplência suspende a escrita, mas permite exportar (REQ-32). */
 function PlanTab() {
+  const { can } = useSession();
   const [c, setC] = useState<any>(null);
+  const [exported, setExported] = useState<number | null>(null);
   useEffect(() => { api('/clinic').then(setC); }, []);
-  if (!c) return null;
-  const status: Record<string, [string, string]> = {
-    trial: ['info', 'Período de teste'], active: ['success', 'Ativo'], suspended: ['danger', 'Suspenso por inadimplência'],
+  if (!c) return <Loading />;
+  const label: Record<string, [ 'ok' | 'info' | 'bad', string]> = {
+    trial: ['info', 'Período de teste'], active: ['ok', 'Ativo'], suspended: ['bad', 'Suspenso por inadimplência'],
   };
-  const [tone, label] = status[c.billingStatus];
+  const [tone, text] = label[c.billingStatus];
   const days = c.trialEndsAt ? Math.max(0, Math.ceil((new Date(c.trialEndsAt).getTime() - Date.now()) / 86400000)) : null;
   return (
-    <div className="grid-2">
-      <Card title="Assinatura">
-        <div className="stack">
-          <div className="row"><span className={`tag ${tone}`}>{label}</span><span className="tag">Plano {c.plan}</span></div>
-          {c.billingStatus === 'trial' && days !== null && <p>Faltam <strong>{days} dias</strong> de teste gratuito.</p>}
+    <div className="stack" style={{ gap: 28 }}>
+      <Section title="Assinatura">
+        <div className="panel panel-pad">
+          <dl className="kv">
+            <dt>Situação</dt><dd><Status tone={tone}>{text}</Status></dd>
+            <dt>Plano</dt><dd style={{ textTransform: 'capitalize' }}>{c.plan}</dd>
+            {c.billingStatus === 'trial' && days !== null && (<><dt>Teste gratuito</dt><dd>{days === 0 ? 'Termina hoje' : `Faltam ${days} dias`}</dd></>)}
+          </dl>
           {c.billingStatus === 'suspended' && (
-            <div className="alert danger">
-              O consultório está em modo somente leitura. Nenhum prontuário foi apagado. Você pode exportar cada prontuário
-              (PDF e dados estruturados) a partir da ficha do paciente.
-            </div>
+            <p className="muted" style={{ marginTop: 12 }}>
+              O consultório está em modo somente leitura. Nenhum prontuário foi apagado e a exportação continua disponível.
+            </p>
           )}
-          <p className="subtle">Pagamento e troca de plano: em breve. Por enquanto, fale com o suporte.</p>
         </div>
-      </Card>
-      <Card title="Seus dados">
-        <p className="subtle" style={{ marginBottom: 12 }}>
-          Os dados são do consultório. A exportação completa do prontuário está sempre disponível, inclusive com o
-          consultório suspenso.
-        </p>
-        <Link className="btn" to="/pacientes">Ir para pacientes e exportar</Link>
-      </Card>
+      </Section>
+
+      <Section title={c.billingStatus === 'active' ? 'Seus dados' : 'Ao fim do período'}
+        description="Os dados são do consultório. Você decide se continua no Fichaclin ou leva todos os prontuários com você.">
+        <div className="form-grid">
+          <div className="col-6 panel panel-pad stack" style={{ gap: 10 }}>
+            <h3>Continuar com o Fichaclin</h3>
+            <p className="muted">Mantenha o acesso completo, com os prontuários guardados e protegidos pelo Fichaclin.</p>
+            <p className="subtle">O pagamento online ainda não está disponível. Para contratar ou regularizar, fale com o suporte.</p>
+            <div><Link className="btn btn-primary" to="/suporte">Contratar pelo suporte</Link></div>
+          </div>
+          <div className="col-6 panel panel-pad stack" style={{ gap: 10 }}>
+            <h3>Exportar todos os dados</h3>
+            <p className="muted">
+              Baixe um arquivo com os prontuários de todos os pacientes, ativos e inativos, em planilha, dados estruturados e
+              versão para impressão.
+            </p>
+            <p className="subtle">O prontuário deve ser guardado por no mínimo 20 anos (Lei 13.787/2018), mesmo se você sair do sistema.</p>
+            {can('export')
+              ? <div><ExportAllButton scope="all" label="Exportar todos os pacientes" onDone={setExported} /></div>
+              : <p className="subtle">Peça ao(à) proprietário(a) ou a um(a) dentista para exportar.</p>}
+            {exported !== null && <Status tone="ok">{exported} prontuário(s) exportado(s)</Status>}
+          </div>
+        </div>
+      </Section>
     </div>
   );
 }

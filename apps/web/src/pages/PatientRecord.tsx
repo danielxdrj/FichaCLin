@@ -6,6 +6,7 @@ import { useSession } from '../lib/session';
 import { Icon } from '../components/Icon';
 import { Card, ErrorAlert, PageHead, Toggle } from '../components/ui';
 import { CONSENT_LABELS } from './PatientForm';
+import { consentDetail, consentStatus, type ConsentRecord } from '../lib/consent';
 import { AnamnesisTab } from './record/AnamnesisTab';
 import { OdontogramTab } from './record/OdontogramTab';
 import { HistoryTab } from './record/HistoryTab';
@@ -15,7 +16,7 @@ export interface Patient {
   profession: string | null; maritalStatus: string | null; phone: string; email: string | null; notes: string | null;
   address: Record<string, string>; active: boolean; isMinor: boolean;
   guardian: { name: string; cpf: string; relationship: string; phone: string } | null;
-  consents: { purpose: 'marketing' | 'image' | 'research'; granted: boolean; textVersion: string; grantedByName: string; grantedByRelation: string; createdAt: string }[];
+  consents: ConsentRecord[];
 }
 
 export function PatientRecordPage() {
@@ -133,7 +134,7 @@ function Summary({ patient, reload, onToggleActive, readOnly }: { patient: Patie
                 <div key={k} className="row" style={{ alignItems: 'flex-start', padding: '8px 0' }}>
                   <div style={{ flex: 1 }}>
                     <div>{CONSENT_LABELS[k]}</div>
-                    {c && <div className="subtle">{c.granted ? 'Autorizado' : 'Não autorizado'} por {c.grantedByName} ({c.grantedByRelation}) · {formatDateTime(c.createdAt)} · {c.textVersion}</div>}
+                    {c && <div className="subtle"><strong style={{ fontWeight: 600 }}>{consentStatus(c)}</strong> · {consentDetail(c)}</div>}
                   </div>
                   {can('patients:write') && !readOnly && (
                     <Toggle label={k} checked={Boolean(c?.granted)} onChange={(v) => setConsent(k, v)} />

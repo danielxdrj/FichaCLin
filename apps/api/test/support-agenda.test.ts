@@ -192,3 +192,74 @@ describe('Agenda', () => {
     expect((await helenaB.call('POST', '/api/agenda', { kind: 'lembrete', title: 'Teste', startsAt: at(8), endsAt: at(9) })).status).toBe(402);
   });
 });
+
+describe('Exportação de todos os pacientes (REQ-06 / REQ-32 / REQ-35)', () => {
+  async function rawLogin(key: (typeof DEV_USERS)[number]['key'], clinic: string) {
+    await login(key, clinic); // aceita termos pendentes
+    const user = DEV_USERS.find((u) => u.key === key)!;
+    // nova sessão só para ler o corpo binário (ZIP) com app.inject
+    const res = await app.inject({ method: 'POST', url: '/api/auth/login', headers: { 'x-fichaclin': '1' }, payload: { email: user.email, password: DEV_PASSWORD } });
+    const cookie = String(res.headers['set-cookie']).split(';')[0];
+    const c2: Call = async (method, url, body) => {
+      const r = await app.inject({ method, url, headers: { cookie, 'x-fichaclin': '1' }, payload: body as any });
+      return { status: r.statusCode, body: r.body ? JSON.parse(r.body) : null };
+    };
+    const me = (await c2('GET', '/api/auth/me')).body;
+    if (me.mfa.required && !me.mfa.verified) await c2('POST', '/api/auth/2fa/verify', { code: currentTotp(user.totp!) });
+    await c2('POST', '/api/auth/select-clinic', { clinicId: clinic });
+    return (url: string) => app.inject({ method: 'GET', url, headers: { cookie } });
+  }
+
+  it('gera ZIP com índice, JSON e HTML de cada paciente do consultório, com filtro', async () => {
+    const { unzipSync, strFromU8 } = await import('fflate');
+    const get = await rawLogin('rafael', clinicA);
+    const all = await get('/api/patients/export-all?status=all');
+    expect(all.statusCode).toBe(200);
+    expect(all.headers['content-type']).toBe('application/zip');
+    const files = unzipSync(new Uint8Array(all.rawPayload));
+    const names = Object.keys(files);
+    const total = (await owner.query('SELECT count(*)::int AS n FROM patients WHERE clinic_id = $1', [clinicA])).rows[0].n;
+    expect(names.filter((n) => n.endsWith('prontuario.json')).length).toBe(total);
+    expect(names.filter((n) => n.endsWith('prontuario.html')).length).toBe(total);
+    expect(names).toContain('pacientes.csv');
+    expect(names).toContain('LEIA-ME.txt');
+    // isolamento: nada do consultório B
+    expect(strFromU8(files['pacientes.csv'])).not.toContain('Paciente do Consultório B');
+    const html = strFromU8(files[names.find((n) => n.includes('mariana') && n.endsWith('.html'))!]);
+    expect(html).toContain('Prontuário odontológico');
+    expect(html).not.toMatch(/<script/i);
+
+    const inactive = await get('/api/patients/export-all?status=inactive');
+    const nInactive = (await owner.query('SELECT count(*)::int AS n FROM patients WHERE clinic_id = $1 AND NOT active', [clinicA])).rows[0].n;
+    expect(Number(inactive.headers['x-fichaclin-count'])).toBe(nInactive);
+
+    const bulk = await owner.query("SELECT metadata FROM audit_log WHERE action = 'record.export_bulk' AND clinic_id = $1 ORDER BY id DESC LIMIT 1", [clinicA]);
+    expect(bulk.rows[0].metadata).toEqual({ status: 'inactive', count: nInactive });
+  });
+
+  it('recepção não exporta; consultório suspenso exporta', async () => {
+    const recep = await rawLogin('camila', clinicA);
+    expect((await recep('/api/patients/export-all')).statusCode).toBe(403);
+    const helenaB = await rawLogin('helena', clinicB);
+    expect((await helenaB('/api/patients/export-all')).statusCode).toBe(200);
+  });
+});
+
+describe('Sugestões e consentimentos', () => {
+  it('categoria de sugestão é aceita', async () => {
+    const { call } = await login('camila', clinicA);
+    const r = await call('POST', '/api/support/tickets', { category: 'sugestao', priority: 'baixa', subject: 'Área de estoque', description: 'Gostaria de controlar materiais.' });
+    expect(r.status).toBe(201);
+  });
+
+  it('consentimento nunca alterado aparece como padrão do cadastro, com quem registrou', async () => {
+    const { call } = await login('helena', clinicA);
+    const p = (await owner.query("SELECT id FROM patients WHERE full_name = 'João Pedro Almeida'")).rows[0].id;
+    const detail = (await call('GET', `/api/patients/${p}`)).body;
+    const research = detail.consents.find((c: any) => c.purpose === 'research');
+    expect(research).toMatchObject({ granted: false, isInitial: true, collectedBy: 'Camila Souza' });
+    await call('POST', `/api/patients/${p}/consents`, { purpose: 'research', granted: true });
+    const after = (await call('GET', `/api/patients/${p}`)).body.consents.find((c: any) => c.purpose === 'research');
+    expect(after).toMatchObject({ granted: true, isInitial: false, collectedBy: 'Dra. Helena Prado' });
+  });
+});

@@ -4,7 +4,8 @@ import { api } from '../lib/api';
 import { ageFrom, formatDate, initials, maskCpf } from '../lib/format';
 import { useSession } from '../lib/session';
 import { Icon } from '../components/Icon';
-import { ErrorAlert, PageHead, Select } from '../components/ui';
+import { ErrorAlert, PageHead, Select, useToast } from '../components/ui';
+import { ExportAllButton, type ExportScope } from '../components/ExportAll';
 
 interface Row {
   id: string; fullName: string; socialName: string | null; birthDate: string; phone: string; cpf: string | null;
@@ -20,6 +21,7 @@ export function PatientsPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState<unknown>(null);
   const readOnly = me?.current?.billingStatus === 'suspended';
+  const toast = useToast();
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -35,9 +37,17 @@ export function PatientsPage() {
       <PageHead
         title="Pacientes"
         subtitle={rows ? `${rows.length} ${status === 'inactive' ? 'inativos' : 'cadastrados'}` : ' '}
-        actions={can('patients:write') && !readOnly && (
-          <Link className="btn btn-primary" to="/pacientes/novo"><Icon name="plus" size={16} /> Novo paciente</Link>
-        )}
+        actions={<>
+          {/* Exporta conforme o filtro de situação atual; dentro de cada paciente continua a exportação individual. */}
+          {can('export') && (
+            <ExportAllButton scope={status as ExportScope}
+              label={status === 'active' ? 'Exportar ativos' : status === 'inactive' ? 'Exportar inativos' : 'Exportar todos'}
+              onDone={(n) => toast.show(`${n} prontuário(s) exportado(s).`)} />
+          )}
+          {can('patients:write') && !readOnly && (
+            <Link className="btn btn-primary" to="/pacientes/novo"><Icon name="plus" size={16} /> Novo paciente</Link>
+          )}
+        </>}
       />
       <div className="card">
         <div className="card-head">
@@ -85,6 +95,7 @@ export function PatientsPage() {
           </table>
         )}
       </div>
+      {toast.node}
     </>
   );
 }
