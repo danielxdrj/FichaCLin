@@ -47,7 +47,7 @@ async function startSession(reply: FastifyReply, userId: string, ip: string, use
   reply.setCookie(config.session.cookieName, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: config.isProd, // REQ-27: HTTPS em produção
+    secure: config.cookieSecure, // REQ-27: HTTPS em produção
     path: '/',
     expires,
   });

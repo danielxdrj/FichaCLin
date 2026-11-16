@@ -19,7 +19,7 @@ export async function trustDevice(reply: FastifyReply, userId: string, ip: strin
     'INSERT INTO trusted_devices (user_id, token_hash, ip, user_agent, expires_at) VALUES ($1, $2, $3, $4, $5)',
     [userId, sha256(token), ip, userAgent ?? null, expires],
   );
-  reply.setCookie(TRUSTED_COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: config.isProd, path: '/api/auth', expires });
+  reply.setCookie(TRUSTED_COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: config.cookieSecure, path: '/api/auth', expires });
 }
 
 export async function isTrustedDevice(userId: string, token: string | undefined): Promise<boolean> {

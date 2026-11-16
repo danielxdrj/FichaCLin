@@ -70,6 +70,10 @@ const PATIENTS = [
 ];
 
 export async function seed(ownerUrl = config.ownerDatabaseUrl): Promise<'seeded' | 'skipped'> {
+  // Usuários de teste com senha conhecida nunca podem existir em produção.
+  if (config.isProd && process.env.ALLOW_DEV_SEED !== '1') {
+    throw new Error('Seed de desenvolvimento bloqueado em produção. (Para a stack LOCAL, use ALLOW_DEV_SEED=1.)');
+  }
   const db = new pg.Client({ connectionString: ownerUrl });
   await db.connect();
   try {
