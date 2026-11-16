@@ -12,3 +12,4 @@ e pontos marcados como "Jurídico ⚖" na [matriz](MATRIZ.md).
 | 5 | Status de adequação da UE (Res. CD/ANPD 32/2026) e cláusulas para suboperadores nos EUA | REQ-13 | O próprio PDF pede confirmação ("Confirme esse ponto com o advogado") |
 | 6 | Lembretes de consulta por WhatsApp: tutela da saúde ou consentimento? | REQ-16 | Sistema só permite o consultório configurar a base legal; nenhum envio implementado |
 | 7 | Textos de Termos de Uso, Política de Privacidade e DPA | REQ-02, REQ-03, REQ-34 | O seed cria versões marcadas como **RASCUNHO — não usar em produção** |
+| 8 | 2FA opcional (decisão de produto D-01 da matriz): é aceitável para um sistema com dados de saúde, sendo que o PDF recomenda obrigatório para dentistas e administradores? A assinatura "simples" (sem 2FA) tem valor como registro do prontuário? | REQ-04, REQ-24 | 2FA recomendado na interface e exigível pelo consultório; assinaturas sem 2FA marcadas como `simples` |

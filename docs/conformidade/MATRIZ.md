@@ -27,7 +27,7 @@ Cada requisito recebe um ID `REQ-NN`. O código cita esse ID em comentários
 | REQ-01 | Consultório = controlador; Fichaclin = operador dos dados de pacientes (§1 item 1, §2) | Separação de dados por consultório; Fichaclin só trata dados para prestar o serviço | Contrato/Termos; `clinics` como dono dos dados (`apps/api/src/db/migrations/001_schema.sql`) | Revisão contratual | Fora do software · Jurídico ⚖ |
 | REQ-02 | DPA assinado com cada consultório; aceite do DPA na tela 07 (§1 item 2, §8.3, §9) | Registro do aceite do DPA por versão | `legal_acceptances` (tipo `dpa`), rota `POST /clinic/dpa/accept`, tela Configurações · Consultório | `api.test.ts` | Técnico ✔ (registro de aceite) · Texto do DPA: Jurídico ⚖ |
 | REQ-03 | Termos de Uso e Política de Privacidade com aceite registrado (versão, data, IP, usuário), na 1ª entrada e a cada nova versão (§1 item 3, §9 tela 01) | Bloqueio do uso até aceitar a versão vigente | `legal_documents`, `legal_acceptances`; middleware `requireCurrentTerms`; tela de aceite após login | `api.test.ts` (nova versão exige novo aceite) | Técnico ✔ · Texto dos documentos: Jurídico ⚖ |
-| REQ-04 | Assinatura: MVP com assinatura eletrônica simples (login + 2FA + carimbo de tempo + hash + trilha); fase 2 ICP-Brasil (PAdES); orientar via em papel sem ICP (§1 item 4, §5) | Registros clínicos assinados com hash SHA-256 e método `simples-2fa`; aviso na tela de evolução | `clinical_entries.content_hash`, `signature_method`; `services/signature.ts`; aviso na tela 06 | `api.test.ts` | Parcial (MVP) · ICP-Brasil: Pendente (fase 2) · Validade jurídica: Jurídico ⚖ |
+| REQ-04 | Assinatura: MVP com assinatura eletrônica simples (login + 2FA + carimbo de tempo + hash + trilha); fase 2 ICP-Brasil (PAdES); orientar via em papel sem ICP (§1 item 4, §5) | Registros clínicos assinados com hash SHA-256; método `simples-2fa` quando a sessão passou pelo 2FA, `simples` quando não (2FA opcional, ver REQ-24); aviso na tela de evolução | `clinical_entries.content_hash`, `signature_method`; `routes/clinical.ts`; aviso na tela 06 | `api.test.ts` | Parcial (MVP) · Sem 2FA, **não** atende a descrição do PDF · ICP-Brasil: Pendente (fase 2) · Jurídico ⚖ |
 | REQ-05 | Guarda mínima de 20 anos; nunca apagar prontuário ao excluir paciente (só inativar) (§1 item 5, §5 Lei 13.787) | Pacientes e prontuários não podem ser apagados | Gatilhos `prevent_delete` em `patients`, `clinical_entries`, `anamnesis_responses`; `PATCH /patients/:id/inactivate` | `db.test.ts` (DELETE é rejeitado pelo banco) | Técnico ✔ · Política de retenção física: Fora do software |
 | REQ-06 | Exportação do prontuário (PDF + dados estruturados); cópia ao paciente ou responsável (§1 item 5, §5, §9 tela 13) | Exportação completa do paciente | `GET /patients/:id/export` (JSON estruturado) e página imprimível (`/pacientes/:id/exportar`, impressão em PDF pelo navegador) | `api.test.ts` | Parcial (PDF via impressão do navegador; PDF gerado no servidor: Pendente) |
 | REQ-07 | Log de auditoria imutável: quem abriu, criou, alterou ou exportou cada prontuário (§1 item 6, §6.3) | Toda leitura/escrita/exportação de dados clínicos gera evento | Tabela `audit_log` (somente INSERT/SELECT, gatilho bloqueia UPDATE/DELETE, encadeamento de hash); `services/audit.ts` | `db.test.ts`, `api.test.ts` | Técnico ✔ |
@@ -47,7 +47,7 @@ Cada requisito recebe um ID `REQ-NN`. O código cita esse ID em comentários
 | REQ-21 | Anamnese: versão do modelo salva junto da resposta; histórico imutável; assinatura do paciente/responsável (§9 telas 04/10) | Modelos versionados; respostas não editáveis | `anamnesis_templates` (versão), `anamnesis_responses` (gatilho bloqueia UPDATE/DELETE) | `api.test.ts` | Técnico ✔ · Assinatura do paciente: Parcial (papel) |
 | REQ-22 | Controle de acesso por papel: dono, dentista, recepção; recepção sem dados clínicos por padrão; log de alteração de permissão (§5, §9 tela 08) | RBAC por consultório | `domain/permissions.ts`; `requirePermission`; auditoria `membership.role_changed` | `domain.test.ts`, `api.test.ts` | Técnico ✔ |
 | REQ-23 | Senhas com Argon2 (§6.3) | Hash de senha | `services/password.ts` (argon2id) | `domain.test.ts`, `api.test.ts` | Técnico ✔ |
-| REQ-24 | 2FA obrigatório para dentistas e administradores (§6.3, §9 tela 01) | TOTP exigido para papéis `owner`/`dentist` | `services/totp.ts`; fluxo de login | `domain.test.ts`, `api.test.ts` | Técnico ✔ |
+| REQ-24 | 2FA obrigatório para dentistas e administradores (§6.3, §9 tela 01) | **Divergência por decisão de produto** (ver abaixo): 2FA opcional, recomendado na interface, exigível pelo consultório; cadastro por QR code; dispositivo lembrado por 90 dias | `services/totp.ts`, `services/trusted-device.ts`, `clinics.require_mfa`; Configurações · Segurança | `domain.test.ts`, `api.test.ts` | **Divergente** · Jurídico ⚖ |
 | REQ-25 | Bloqueio após tentativas de login (§9 tela 01) | Conta bloqueada temporariamente | `users.failed_logins`, `locked_until` | `domain.test.ts`, `api.test.ts` | Técnico ✔ |
 | REQ-26 | Isolamento por consultório (RLS no Postgres); usuário só vê consultórios com vínculo (§6.3, §9 tela 09) | Toda consulta passa por RLS com `app.clinic_id` | Políticas RLS em `001_schema.sql`; `db/tenant.ts` | `db.test.ts` (consultório A não lê dados do B) | Técnico ✔ |
 | REQ-27 | HTTPS em tudo (§6.3) | TLS no proxy de produção; cookies `Secure` | `docker-compose`/proxy (produção); cookie `secure` em produção | Revisão de deploy | Parcial · Fora do software (TLS do proxy) |
@@ -70,3 +70,25 @@ Nenhum conflito bloqueante identificado. Decisões tomadas por causa do PDF (det
 2. **Imutabilidade no banco** (gatilhos), não só na API, para prontuário, anamnese e auditoria (REQ-05, REQ-07, REQ-19, REQ-21).
 3. **Inativação no lugar de exclusão** de pacientes (REQ-05).
 4. **Assinatura em duas fases**: hash + 2FA no MVP; ICP-Brasil na fase 2 (REQ-04).
+
+## Divergências decididas pelo produto
+
+### D-01 — 2FA opcional (REQ-24, afeta REQ-04) · 16/11/2026
+
+- **O PDF diz:** "2FA obrigatório para dentistas e administradores" (§6.3) e descreve a assinatura do MVP
+  como "login + 2FA + carimbo de tempo + hash" (§5).
+- **Decisão do produto:** o cliente cria a conta e usa o teste grátis de 7 dias sem 2FA. O sistema
+  **recomenda** o 2FA (aviso permanente até ativar) e o cliente ativa em Configurações · Segurança, por QR code.
+  Depois de ativado, o código é pedido no login, exceto em dispositivo marcado como "não solicitar novamente"
+  (90 dias, revogável). O dono pode **exigir** 2FA de toda a equipe.
+- **Impacto técnico:** sessões sem 2FA podem acessar e assinar prontuários. Assinaturas feitas sem 2FA ficam
+  marcadas como `simples` (com 2FA: `simples-2fa`), para que o histórico mostre a diferença.
+- **Risco:** menor proteção de dados sensíveis (LGPD art. 46) e assinatura mais fraca que a descrita no PDF.
+- **Mitigação disponível:** a opção "Exigir 2FA de todos os usuários" restaura o comportamento do PDF por consultório.
+- **Status:** divergente — levar ao advogado (item 8 de [DUVIDAS_JURIDICAS.md](DUVIDAS_JURIDICAS.md)).
+
+### D-02 — Cadastro aberto com teste grátis de 7 dias · 16/11/2026
+
+- Não diverge do PDF, mas cria obrigações: o aceite dos Termos e da Política é registrado no próprio cadastro
+  (REQ-03), e o DPA (REQ-02) continua pendente até o dono aceitar em Configurações · Consultório.
+- **Pendente:** confirmação de e-mail e limite de tentativas no cadastro (proteção contra abuso).
