@@ -43,7 +43,7 @@ export function SignupForm({ onBack }: { onBack: () => void }) {
     <>
       <div>
         <h1>Criar conta</h1>
-        <p className="muted">7 dias grátis, sem cartão. Você será o dono do consultório.</p>
+        <p className="muted">7 dias grátis, sem cartão. Você será o(a) proprietário(a) do consultório.</p>
       </div>
       <form className="stack" onSubmit={submit}>
         <Field label="Seu nome completo"><Input value={form.name} onChange={(e) => set('name', e.target.value)} autoComplete="name" required /></Field>

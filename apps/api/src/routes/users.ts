@@ -82,7 +82,7 @@ export async function userRoutes(app: FastifyInstance) {
       const before = rows[0];
       if (!before) throw notFound();
       if (before.user_id === a.userId && (body.role && body.role !== 'owner' || body.active === false)) {
-        throw forbidden('Você não pode remover o próprio acesso de dono');
+        throw forbidden('Você não pode remover o seu próprio acesso de proprietário(a)');
       }
       const after = {
         role: body.role ?? before.role,

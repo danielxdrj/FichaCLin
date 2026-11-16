@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, post } from '../lib/api';
 import { formatDateTime } from '../lib/format';
 import { useSession } from '../lib/session';
-import { Card, ErrorAlert, Input, PageHead, Select } from '../components/ui';
+import { Card, ErrorAlert, Input, Select } from '../components/ui';
 
 interface Question { id: string; text: string; type: 'yesno' | 'text'; alert: boolean; section: string }
 
@@ -70,11 +70,13 @@ export function TemplateEditorPage() {
 
   return (
     <>
-      <PageHead
-        title="Modelo de anamnese"
-        subtitle={version ? `Versão vigente: v${version}` : 'Nenhum modelo publicado'}
-        actions={!readOnly && <button className="btn btn-primary" onClick={publish}>Publicar nova versão</button>}
-      />
+      <div className="section-head" style={{ marginBottom: 16 }}>
+        <div>
+          <h2>Modelo de anamnese</h2>
+          <p>{version ? `Versão vigente: v${version}. Publicar cria uma nova versão; as anamneses já registradas não mudam.` : 'Nenhum modelo publicado'}</p>
+        </div>
+        {!readOnly && <button className="btn btn-primary" onClick={publish}>Publicar nova versão</button>}
+      </div>
       {msg && <div className="alert success" style={{ marginBottom: 16 }}>{msg}</div>}
       <ErrorAlert error={error} />
       <div className="grid-2">
@@ -101,12 +103,6 @@ export function TemplateEditorPage() {
           </div>
         </Card>
         <div className="stack">
-          <Card title="Como funciona o versionamento">
-            <p className="subtle">
-              Publicar cria uma nova versão; nenhuma versão é editada. Cada anamnese guarda a cópia das perguntas da versão
-              em que foi respondida, então o histórico do paciente nunca muda.
-            </p>
-          </Card>
           <Card title="Versões" bodyClass="">
             <table className="table">
               <tbody>

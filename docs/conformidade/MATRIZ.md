@@ -53,7 +53,7 @@ Cada requisito recebe um ID `REQ-NN`. O código cita esse ID em comentários
 | REQ-27 | HTTPS em tudo (§6.3) | TLS no proxy de produção; cookies `Secure`; cabeçalhos de segurança | `deploy/Caddyfile` (certificado automático, HSTS, CSP); `COOKIE_SECURE` (padrão `true` em produção) | Stack local: cabeçalhos conferidos | Técnico ✔ (configuração) · Domínio/DNS: Pendente |
 | REQ-28 | Criptografia em repouso do banco e dos arquivos (§6.3) | Volume/disco criptografado | — | — | Pendente · Fora do software |
 | REQ-29 | Backup diário criptografado fora da VPS, com teste de restauração (§6.3) | Serviço `backup` na stack: dump diário, criptografia `age` obrigatória, envio por `rclone`; script de restauração em banco separado | `deploy/backup.sh`, `deploy/restore.sh`, `docs/deploy/PRODUCAO.md` | Teste local: backup cifrado restaurado com contagens conferidas | Parcial · Storage externo e registro mensal dos testes: Fora do software |
-| REQ-30 | Acesso do suporte só com autorização do consultório e registrado em log (§6.3, §9 tela 12) | Autorização com prazo; eventos auditados | `support_grants`; tela Configurações · Suporte | `api.test.ts` | Técnico ✔ (autorização e registro) · Processo de suporte: Fora do software |
+| REQ-30 | Acesso do suporte só com autorização do consultório e registrado em log (§6.3, §9 tela 12) | Autorização com prazo (máx. 72h), ligada opcionalmente a um chamado; concessão, revogação (com autor) e expiração auditadas; módulo de Suporte com chamados | `support_grants`, `support_tickets`, `routes/support.ts`; tela Suporte | `api.test.ts`, `support-agenda.test.ts` | Técnico ✔ (autorização e registro) · Acesso efetivo da equipe de suporte: Pendente · Processo: Fora do software |
 | REQ-31 | Dados do controlador: razão social, CNPJ, responsável técnico e CRO (§9 tela 07) | Campos do consultório | `clinics`; tela Configurações · Consultório | Revisão manual | Funcional ✔ |
 | REQ-32 | Inadimplência suspende uso, mas permite exportar (§8.1, §9 tela 13) | Status `suspended` bloqueia escrita, mantém leitura/exportação | `clinics.billing_status`; `requireWritable` | `api.test.ts` | Técnico ✔ |
 | REQ-33 | Tela de Auditoria para o dono ver quem acessou cada prontuário (§9 "Novo") | Consulta ao `audit_log` filtrada por paciente | `GET /audit`; tela Auditoria | `api.test.ts` | Funcional ✔ |
@@ -70,6 +70,11 @@ Nenhum conflito bloqueante identificado. Decisões tomadas por causa do PDF (det
 2. **Imutabilidade no banco** (gatilhos), não só na API, para prontuário, anamnese e auditoria (REQ-05, REQ-07, REQ-19, REQ-21).
 3. **Inativação no lugar de exclusão** de pacientes (REQ-05).
 4. **Assinatura em duas fases**: hash + 2FA no MVP; ICP-Brasil na fase 2 (REQ-04).
+
+## Rodada de refinamento de UX (16/11/2026)
+
+Decisões D-03 a D-08 (agenda, chamados de suporte, anexos) em [REFINAMENTO-UX.md](../produto/REFINAMENTO-UX.md).
+Nenhuma diverge do PDF; todas reaproveitam permissões e regras de isolamento já existentes.
 
 ## Divergências decididas pelo produto
 
