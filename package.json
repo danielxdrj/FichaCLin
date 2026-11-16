@@ -14,7 +14,8 @@
     "typecheck": "npm run typecheck -w apps/api && npm run typecheck -w apps/web",
     "db:migrate": "npm run db:migrate -w apps/api",
     "db:seed": "npm run db:seed -w apps/api",
-    "dev:totp": "npm run dev:totp -w apps/api"
+    "dev:totp": "npm run dev:totp -w apps/api",
+    "user:create": "npm run user:create -w apps/api --"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

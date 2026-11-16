@@ -37,6 +37,12 @@ Dono e dentista exigem 2FA; para ver o código atual dos usuários de teste:
 npm run dev:totp
 ```
 
+Para criar o **seu** acesso (dono de todos os consultórios), rode no terminal; a senha é pedida sem aparecer na tela:
+
+```bash
+npm run user:create -- --email voce@exemplo.com --name "Seu Nome"
+```
+
 O usuário de recepção não usa 2FA e não vê dados clínicos (REQ-22). O consultório
 "Odonto Centro Vila Nova" do seed está suspenso, para demonstrar o modo somente leitura (REQ-32).
 Para recriar o banco do zero: `docker compose down -v` e repita os passos acima.
