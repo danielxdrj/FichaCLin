@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { getPool } from '../db/pool.js';
 import { auditFor, auth, guards, inClinic, requirePermission, requireWritable, tenant } from '../http/context.js';
 import { addressSchema } from '../domain/patient.js';
-import { badRequest } from '../http/errors.js';
+import { badRequest, HttpError } from '../http/errors.js';
 
 const clinicSchema = z.object({
   name: z.string().trim().min(2),
@@ -63,6 +63,13 @@ export async function clinicRoutes(app: FastifyInstance) {
   app.put('/api/clinic/security', { preHandler: guards(requirePermission('clinic:manage')) }, async (req) => {
     const { requireMfa } = z.object({ requireMfa: z.boolean() }).parse(req.body);
     const a = auth(req);
+    // Evita o dono se trancar fora: só exige da equipe quem já usa 2FA. Vale a partir do próximo login.
+    if (requireMfa) {
+      const me = await getPool().query<{ totp_enabled: boolean }>('SELECT totp_enabled FROM users WHERE id = $1', [a.userId]);
+      if (!me.rows[0]?.totp_enabled) {
+        throw new HttpError(409, 'OWNER_MFA_REQUIRED', 'Ative o 2FA na sua conta antes de exigir da equipe.');
+      }
+    }
     return tenant(req, async (db) => {
       await db.query('UPDATE clinics SET require_mfa = $2 WHERE id = $1', [a.clinicId, requireMfa]);
       await auditFor(req, db, { action: 'clinic.require_mfa', entity: 'clinic', entityId: a.clinicId, metadata: { requireMfa } });

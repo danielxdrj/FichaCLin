@@ -27,7 +27,7 @@ export function MfaPage() {
         </p>
       </div>
       <TwoFactorSetup setupNeeded={needsSetup} onDone={refresh} />
-      <button type="button" className="btn btn-ghost" onClick={cancel}>Voltar</button>
+      <button type="button" className="btn btn-ghost" onClick={cancel}>Voltar ao login</button>
     </AuthFrame>
   );
 }

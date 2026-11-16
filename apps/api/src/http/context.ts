@@ -3,7 +3,7 @@ import type { PoolClient } from 'pg';
 import { config } from '../config.js';
 import { getPool } from '../db/pool.js';
 import { withTenant } from '../db/tenant.js';
-import { effectivePermissions, requiresMfa, type Permission, type Role } from '../domain/permissions.js';
+import { effectivePermissions, type Permission, type Role } from '../domain/permissions.js';
 import { findSession } from '../services/session.js';
 import { audit, type AuditEvent } from '../services/audit.js';
 import { forbidden, HttpError, unauthorized } from './errors.js';
@@ -48,14 +48,9 @@ export async function loadAuth(req: FastifyRequest): Promise<void> {
   const session = await findSession(token);
   if (!session) return;
 
-  const user = await getPool().query<{ totp_enabled: boolean }>('SELECT totp_enabled FROM users WHERE id = $1', [
-    session.user_id,
-  ]);
   const ctx = await withTenant({ userId: session.user_id, clinicId: session.clinic_id }, async (db) => {
-    const memberships = await db.query<{ clinic_id: string; role: Role; permissions: string[] | null; require_mfa: boolean }>(
-      `SELECT m.clinic_id, m.role, m.permissions, c.require_mfa
-         FROM memberships m JOIN clinics c ON c.id = m.clinic_id
-        WHERE m.user_id = $1 AND m.active`,
+    const memberships = await db.query<{ clinic_id: string; role: Role; permissions: string[] | null }>(
+      'SELECT clinic_id, role, permissions FROM memberships WHERE user_id = $1 AND active',
       [session.user_id],
     );
     const current = memberships.rows.find((m) => m.clinic_id === session.clinic_id) ?? null;
@@ -66,14 +61,15 @@ export async function loadAuth(req: FastifyRequest): Promise<void> {
       ]);
       billingStatus = c.rows[0]?.billing_status ?? null;
     }
-    return { clinicRequiresMfa: memberships.rows.some((m) => m.require_mfa), current, billingStatus };
+    return { current, billingStatus };
   });
 
   req.auth = {
     sessionId: session.id,
     userId: session.user_id,
     mfaVerified: session.mfa_verified,
-    mfaRequired: requiresMfa({ userEnabled: Boolean(user.rows[0]?.totp_enabled), clinicRequires: ctx.clinicRequiresMfa }),
+    // Decidido no login (ver routes/auth.ts): mudar a política não derruba a sessão em uso.
+    mfaRequired: session.mfa_required,
     pendingLegal: await pendingLegalDocs(session.user_id),
     clinicId: ctx.current ? session.clinic_id : null,
     role: ctx.current?.role ?? null,

@@ -8,22 +8,24 @@ export interface SessionRow {
   user_id: string;
   clinic_id: string | null;
   mfa_verified: boolean;
+  mfa_required: boolean;
 }
 
 /** Token opaco no cookie; só o hash fica no banco (sessão revogável). */
-export async function createSession(userId: string, ip: string, userAgent: string | undefined) {
+/** `mfaRequired` é decidido no login (2FA ativado pelo usuário ou exigido por consultório). */
+export async function createSession(userId: string, ip: string, userAgent: string | undefined, mfaRequired = false) {
   const token = randomBytes(32).toString('base64url');
   const expires = new Date(Date.now() + config.session.ttlHours * 3600_000);
   const { rows } = await getPool().query<{ id: string }>(
-    `INSERT INTO sessions (user_id, token_hash, ip, user_agent, expires_at) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-    [userId, sha256(token), ip, userAgent ?? null, expires],
+    `INSERT INTO sessions (user_id, token_hash, ip, user_agent, expires_at, mfa_required) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+    [userId, sha256(token), ip, userAgent ?? null, expires, mfaRequired],
   );
   return { token, sessionId: rows[0].id, expires };
 }
 
 export async function findSession(token: string): Promise<SessionRow | null> {
   const { rows } = await getPool().query<SessionRow>(
-    `SELECT id, user_id, clinic_id, mfa_verified FROM sessions
+    `SELECT id, user_id, clinic_id, mfa_verified, mfa_required FROM sessions
       WHERE token_hash = $1 AND revoked_at IS NULL AND expires_at > now()`,
     [sha256(token)],
   );

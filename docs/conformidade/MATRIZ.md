@@ -85,6 +85,8 @@ Nenhum conflito bloqueante identificado. Decisões tomadas por causa do PDF (det
   marcadas como `simples` (com 2FA: `simples-2fa`), para que o histórico mostre a diferença.
 - **Risco:** menor proteção de dados sensíveis (LGPD art. 46) e assinatura mais fraca que a descrita no PDF.
 - **Mitigação disponível:** a opção "Exigir 2FA de todos os usuários" restaura o comportamento do PDF por consultório.
+  Para não ser agressiva, ela vale a partir do próximo login (não desconecta ninguém) e só pode ser ligada por
+  um dono que já usa 2FA. A ativação do 2FA pode ser cancelada a qualquer momento antes da confirmação do código.
 - **Status:** divergente — levar ao advogado (item 8 de [DUVIDAS_JURIDICAS.md](DUVIDAS_JURIDICAS.md)).
 
 ### D-02 — Cadastro aberto com teste grátis de 7 dias · 16/11/2026

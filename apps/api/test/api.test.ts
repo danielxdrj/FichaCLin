@@ -115,7 +115,17 @@ describe('Login — REQ-24 / REQ-25 / REQ-03', () => {
 
   it('REQ-24: consultório pode exigir 2FA; QR code é gerado no cadastro', async () => {
     const helena = await login('helena');
+    // Sessão aberta antes da mudança de política não é derrubada.
+    const before = await app.inject({
+      method: 'POST', url: '/api/auth/login', headers: { 'x-fichaclin': '1' },
+      payload: { email: 'dono.sem2fa@dev.fichaclin.test', password: 'senha-teste-123' },
+    });
+    const beforeCookie = String(before.headers['set-cookie']).split(';')[0];
+    await app.inject({ method: 'POST', url: '/api/auth/select-clinic', headers: { cookie: beforeCookie, 'x-fichaclin': '1' }, payload: { clinicId: clinicA } });
     expect((await helena.call('PUT', '/api/clinic/security', { requireMfa: true })).status).toBe(200);
+    const still = await app.inject({ method: 'GET', url: '/api/patients', headers: { cookie: beforeCookie } });
+    expect(still.statusCode).toBe(200);
+    // A partir do próximo login, a regra vale.
     const res = await app.inject({
       method: 'POST', url: '/api/auth/login', headers: { 'x-fichaclin': '1' },
       payload: { email: 'dono.sem2fa@dev.fichaclin.test', password: 'senha-teste-123' },
@@ -347,6 +357,10 @@ describe('Cadastro do cliente e dispositivo lembrado', () => {
     // Modelo de anamnese inicial criado; isolamento: não vê pacientes de outros consultórios.
     expect((await inject(cookie, 'GET', '/api/anamnesis/template')).body.template.version).toBe(1);
     expect((await inject(cookie, 'GET', '/api/patients')).body.patients).toEqual([]);
+    // Dono sem 2FA não consegue exigir 2FA da equipe (evita se trancar fora).
+    const lock = await inject(cookie, 'PUT', '/api/clinic/security', { requireMfa: true });
+    expect(lock.status).toBe(409);
+    expect(lock.body.code).toBe('OWNER_MFA_REQUIRED');
   });
 
   it('recusa cadastro sem aceite dos termos ou com e-mail repetido', async () => {

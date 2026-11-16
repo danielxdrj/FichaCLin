@@ -170,7 +170,8 @@ function SecurityTab() {
             </div>
           )}
           {!enabled && enabling && (
-            <TwoFactorSetup setupNeeded onDone={() => { setEnabling(false); setMsg('2FA ativado.'); refresh(); }} />
+            <TwoFactorSetup setupNeeded onCancel={() => setEnabling(false)}
+              onDone={() => { setEnabling(false); setMsg('2FA ativado.'); refresh(); }} />
           )}
           {enabled && (
             <div className="stack">
@@ -205,9 +206,15 @@ function SecurityTab() {
             <div className="row" style={{ alignItems: 'flex-start' }}>
               <div style={{ flex: 1 }}>
                 <strong>Exigir 2FA de todos os usuários</strong>
-                <p className="subtle">Quem ainda não ativou será obrigado a cadastrar o autenticador no próximo login.</p>
+                <p className="subtle">
+                  Vale a partir do próximo login de cada pessoa; ninguém é desconectado agora. Quem ainda não ativou
+                  cadastra o autenticador ao entrar.
+                </p>
+                {!enabled && !requireMfa && (
+                  <p className="subtle" style={{ color: 'var(--warning)' }}>Ative o 2FA na sua conta antes de exigir da equipe.</p>
+                )}
               </div>
-              <Toggle label="Exigir 2FA" checked={requireMfa}
+              <Toggle label="Exigir 2FA" checked={requireMfa} disabled={!enabled && !requireMfa}
                 onChange={(v) => run(async () => { await put('/clinic/security', { requireMfa: v }); setRequireMfa(v); },
                   v ? 'O consultório agora exige 2FA.' : '2FA deixou de ser obrigatório no consultório.')} />
             </div>

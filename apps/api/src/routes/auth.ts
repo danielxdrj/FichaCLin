@@ -8,6 +8,7 @@ import { withTenant } from '../db/tenant.js';
 import { auth, pendingLegalDocs, requireMfa, requireSession, requireTerms } from '../http/context.js';
 import { badRequest, conflict, forbidden, HttpError, unauthorized } from '../http/errors.js';
 import { DEFAULT_ANAMNESIS, TRIAL_DAYS } from '../domain/anamnesis-default.js';
+import { requiresMfa } from '../domain/permissions.js';
 import { hashPassword, passwordProblems, verifyPassword } from '../services/password.js';
 import { countTrustedDevices, isTrustedDevice, revokeTrustedDevices, trustDevice, TRUSTED_COOKIE } from '../services/trusted-device.js';
 import { createSession, revokeSession, updateSession } from '../services/session.js';
@@ -41,8 +42,8 @@ async function registerFailure(user: UserRow): Promise<void> {
   }
 }
 
-async function startSession(reply: FastifyReply, userId: string, ip: string, userAgent?: string) {
-  const { token, expires, sessionId } = await createSession(userId, ip, userAgent);
+async function startSession(reply: FastifyReply, userId: string, ip: string, userAgent?: string, mfaRequired = false) {
+  const { token, expires, sessionId } = await createSession(userId, ip, userAgent, mfaRequired);
   reply.setCookie(config.session.cookieName, token, {
     httpOnly: true,
     sameSite: 'lax',
@@ -74,7 +75,15 @@ export async function authRoutes(app: FastifyInstance) {
     }
     await getPool().query('UPDATE users SET failed_logins = 0, locked_until = NULL WHERE id = $1', [user.id]);
 
-    const sessionId = await startSession(reply, user.id, req.ip, req.headers['user-agent']);
+    // REQ-24 (D-01): a exigência é decidida aqui, no login, e fica fixa na sessão.
+    const clinicRequires = await withTenant({ userId: user.id }, async (db) =>
+      Boolean((await db.query(
+        'SELECT 1 FROM memberships m JOIN clinics c ON c.id = m.clinic_id WHERE m.user_id = $1 AND m.active AND c.require_mfa',
+        [user.id],
+      )).rowCount),
+    );
+    const mfaRequired = requiresMfa({ userEnabled: user.totp_enabled, clinicRequires });
+    const sessionId = await startSession(reply, user.id, req.ip, req.headers['user-agent'], mfaRequired);
     // Dispositivo marcado como confiável: não pede o código de novo.
     if (user.totp_enabled && (await isTrustedDevice(user.id, req.cookies?.[TRUSTED_COOKIE]))) {
       await updateSession(sessionId, { mfaVerified: true });

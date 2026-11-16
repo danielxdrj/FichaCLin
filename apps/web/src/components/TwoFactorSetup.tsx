@@ -6,7 +6,7 @@ import { ErrorAlert, Field, Input } from './ui';
  * Cadastro do autenticador por QR code + confirmação com o primeiro código.
  * Usado no login (quando exigido) e em Configurações · Segurança.
  */
-export function TwoFactorSetup({ onDone, setupNeeded }: { onDone: () => void; setupNeeded: boolean }) {
+export function TwoFactorSetup({ onDone, onCancel, setupNeeded }: { onDone: () => void; onCancel?: () => void; setupNeeded: boolean }) {
   const [setup, setSetup] = useState<{ secret: string; qr: string } | null>(null);
   const [showKey, setShowKey] = useState(false);
   const [code, setCode] = useState('');
@@ -58,7 +58,13 @@ export function TwoFactorSetup({ onDone, setupNeeded }: { onDone: () => void; se
           <span>Não solicitar o código neste dispositivo novamente</span>
         </label>
         <ErrorAlert error={error} />
-        <button className="btn btn-primary" disabled={code.length !== 6}>{setupNeeded ? 'Ativar 2FA' : 'Confirmar'}</button>
+        <div className="row">
+          {onCancel && <button type="button" className="btn" onClick={onCancel}>Cancelar</button>}
+          <button className="btn btn-primary" style={{ flex: 1 }} disabled={code.length !== 6}>{setupNeeded ? 'Ativar 2FA' : 'Confirmar'}</button>
+        </div>
+        {setupNeeded && onCancel && (
+          <p className="subtle">Nada muda até você confirmar o código. Se cancelar, o 2FA continua desativado.</p>
+        )}
       </form>
     </div>
   );
