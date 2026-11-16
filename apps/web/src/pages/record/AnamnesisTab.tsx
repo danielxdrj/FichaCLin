@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, post } from '../../lib/api';
 import { formatDateTime } from '../../lib/format';
 import { useSession } from '../../lib/session';
-import { Card, ErrorAlert, Textarea } from '../../components/ui';
+import { Card, EmptyState, ErrorAlert, Textarea } from '../../components/ui';
 import type { Patient } from '../PatientRecord';
 
 interface Question { id: string; text: string; type: 'yesno' | 'text'; alert: boolean; section: string }
@@ -118,9 +118,9 @@ export function AnamnesisTab({ patient, readOnly }: { patient: Patient; readOnly
     <div className="grid-2">
       <div className="stack">
         {!current ? (
-          <Card><div className="empty">Nenhuma anamnese registrada.</div></Card>
+          <EmptyState title="Nenhuma anamnese registrada" />
         ) : (
-          <Card title={`Anamnese de ${formatDateTime(current.createdAt)}`} actions={<span className="tag">Modelo v{current.templateVersion}</span>}>
+          <Card title={`Anamnese de ${formatDateTime(current.createdAt)}`} actions={<span className="subtle">Modelo v{current.templateVersion}</span>}>
             <div className="stack">
               {groupBySection(current.questions).map(([section, qs]) => (
                 <div key={section}>

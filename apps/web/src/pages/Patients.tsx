@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
-import { ageFrom, formatDate, initials, maskCpf } from '../lib/format';
+import { ageFrom, formatDate, maskCpf } from '../lib/format';
 import { useSession } from '../lib/session';
 import { Icon } from '../components/Icon';
-import { ErrorAlert, PageHead, Select, useToast } from '../components/ui';
+import { EmptyState, ErrorAlert, PageHead, Select, Status, useToast } from '../components/ui';
 import { ExportAllButton, type ExportScope } from '../components/ExportAll';
 
 interface Row {
@@ -49,25 +49,24 @@ export function PatientsPage() {
           )}
         </>}
       />
-      <div className="card">
-        <div className="card-head">
-          <div className="row" style={{ flex: 1, maxWidth: 520 }}>
-            <div style={{ position: 'relative', flex: 1 }}>
-              <span style={{ position: 'absolute', left: 10, top: 10, color: 'var(--text-subtle)' }}><Icon name="search" size={18} /></span>
-              <input className="input" style={{ paddingLeft: 36 }} placeholder="Buscar por nome, CPF ou telefone" value={q} onChange={(e) => setQ(e.target.value)} />
-            </div>
-          </div>
-          <div style={{ width: 160 }}>
-            <Select value={status} onChange={(e) => setStatus(e.target.value)} options={[['active', 'Ativos'], ['inactive', 'Inativos'], ['all', 'Todos']]} />
-          </div>
+      <div className="toolbar">
+        <label className="search">
+          <Icon name="search" size={16} />
+          <input className="input" aria-label="Buscar paciente" placeholder="Buscar por nome, CPF ou telefone" value={q} onChange={(e) => setQ(e.target.value)} />
+        </label>
+        <div style={{ width: 150 }}>
+          <Select aria-label="Situação" value={status} onChange={(e) => setStatus(e.target.value)} options={[['active', 'Ativos'], ['inactive', 'Inativos'], ['all', 'Todos']]} />
         </div>
-        <ErrorAlert error={error} />
-        {rows && rows.length === 0 ? (
-          <div className="empty">Nenhum paciente encontrado.</div>
-        ) : (
-          <table className="table">
+      </div>
+      <ErrorAlert error={error} />
+      {rows && rows.length === 0 ? (
+        <div className="list-plain"><EmptyState title="Nenhum paciente encontrado">{q ? 'Revise o termo da busca ou o filtro de situação.' : undefined}</EmptyState></div>
+      ) : (
+        <div className="table-wrap">
+          <table className="table" aria-label="Pacientes">
             <thead>
-              <tr><th>Paciente</th><th>Idade</th><th>Telefone</th><th>CPF</th><th>Última visita</th><th>Status</th></tr>
+              {/* Situação só aparece em "Todos": nos outros filtros todas as linhas teriam o mesmo valor. */}
+              <tr><th>Paciente</th><th>Telefone</th><th>CPF</th><th>Última visita</th>{status === 'all' && <th>Situação</th>}</tr>
             </thead>
             <tbody>
               {rows?.map((p) => {
@@ -75,26 +74,24 @@ export function PatientsPage() {
                 return (
                   <tr key={p.id} className="clickable" onClick={() => navigate(`/pacientes/${p.id}`)}>
                     <td>
-                      <div className="row">
-                        <div className="avatar">{initials(p.socialName || p.fullName)}</div>
-                        <div>
-                          <strong>{p.socialName || p.fullName}</strong>
-                          {p.socialName && <div className="subtle">{p.fullName}</div>}
-                        </div>
+                      <Link to={`/pacientes/${p.id}`} className="primary" style={{ color: 'inherit' }} onClick={(e) => e.stopPropagation()}>
+                        {p.socialName || p.fullName}
+                      </Link>
+                      <div className="subtle">
+                        {age} anos{age < 18 && ' · menor de idade'}{p.socialName && ` · ${p.fullName}`}
                       </div>
                     </td>
-                    <td>{age} anos {age < 18 && <span className="tag warning">Menor</span>}</td>
-                    <td>{p.phone}</td>
-                    <td className="muted">{maskCpf(p.cpf)}</td>
-                    <td>{formatDate(p.lastVisit)}</td>
-                    <td>{p.active ? <span className="tag success">Ativo</span> : <span className="tag">Inativo</span>}</td>
+                    <td style={{ fontVariantNumeric: 'tabular-nums' }}>{p.phone}</td>
+                    <td className="muted" style={{ fontVariantNumeric: 'tabular-nums' }}>{maskCpf(p.cpf)}</td>
+                    <td className={p.lastVisit ? undefined : 'muted'}>{formatDate(p.lastVisit)}</td>
+                    {status === 'all' && <td>{p.active ? <Status tone="ok">Ativo</Status> : <Status tone="off">Inativo</Status>}</td>}
                   </tr>
                 );
               })}
             </tbody>
           </table>
-        )}
-      </div>
+        </div>
+      )}
       {toast.node}
     </>
   );

@@ -12,9 +12,11 @@
   --text-muted: #5b6573;
   --text-subtle: #8a94a1;
   --text-on-primary: #ffffff;
-  --sidebar-bg: #1f2933;
-  --sidebar-text: #c3cbd4;
-  --sidebar-active: #2e3b48;
+  --sidebar-bg: #f6f7f8;
+  --sidebar-text: #4b5563;
+  --sidebar-text-strong: #1c2430;
+  --sidebar-active: #e8ebee;
+  --sidebar-border: #e2e6ea;
   --success: #15803d;
   --success-soft: #e6f4ea;
   --warning: #b45309;
@@ -31,8 +33,8 @@
   --odonto-higido: #ffffff;
   --odonto-contorno: #9aa5b1;
 
-  --radius: 6px;
-  --radius-lg: 8px;
+  --radius: 4px;
+  --radius-lg: 6px;
   --shadow: none;
   --font: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   color-scheme: light;
@@ -53,7 +55,9 @@
   --text-on-primary: #ffffff;
   --sidebar-bg: #15181b;
   --sidebar-text: #a0a6ae;
+  --sidebar-text-strong: #e4e6e9;
   --sidebar-active: #23272d;
+  --sidebar-border: #23272d;
   --success: #6faf86;
   --success-soft: #1b2620;
   --warning: #d3a15a;

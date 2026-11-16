@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, NavLink, useParams } from 'react-router-dom';
 import { api, post } from '../lib/api';
-import { ageFrom, formatDate, formatDateTime, initials } from '../lib/format';
+import { ageFrom, formatDate } from '../lib/format';
 import { useSession } from '../lib/session';
 import { Icon } from '../components/Icon';
 import { Card, ErrorAlert, PageHead, Toggle } from '../components/ui';
@@ -54,14 +54,15 @@ export function PatientRecordPage() {
       <PageHead
         crumb={<><Link to="/pacientes">Pacientes</Link> / {name}</>}
         title={
-          <span className="row">
-            <span className="avatar" style={{ width: 40, height: 40, fontSize: 14 }}>{initials(name)}</span>
+          <span className="row wrap" style={{ gap: 10 }}>
             {name}
             {!patient.active && <span className="tag">Inativo</span>}
-            {patient.isMinor && <span className="tag warning">Menor · responsável: {patient.guardian?.name}</span>}
           </span>
         }
-        subtitle={`${ageFrom(patient.birthDate)} anos · nasc. ${formatDate(patient.birthDate)} · ${patient.phone}`}
+        subtitle={<>
+          {ageFrom(patient.birthDate)} anos · nasc. {formatDate(patient.birthDate)} · {patient.phone}
+          {patient.isMinor && <> · <span style={{ color: 'var(--warning)' }}>menor de idade</span>, responsável: {patient.guardian?.name}</>}
+        </>}
         actions={<>
           {can('export') && (
             <Link className="btn" to={`/pacientes/${id}/exportar`}><Icon name="download" size={16} /> Exportar prontuário</Link>
@@ -134,7 +135,7 @@ function Summary({ patient, reload, onToggleActive, readOnly }: { patient: Patie
                 <div key={k} className="row" style={{ alignItems: 'flex-start', padding: '8px 0' }}>
                   <div style={{ flex: 1 }}>
                     <div>{CONSENT_LABELS[k]}</div>
-                    {c && <div className="subtle"><strong style={{ fontWeight: 600 }}>{consentStatus(c)}</strong> · {consentDetail(c)}</div>}
+                    {c && <div className="subtle">{consentStatus(c)} · {consentDetail(c)}</div>}
                   </div>
                   {can('patients:write') && !readOnly && (
                     <Toggle label={k} checked={Boolean(c?.granted)} onChange={(v) => setConsent(k, v)} />

@@ -87,7 +87,7 @@ export function SupportPage() {
         <>
           <div className={ticketId ? 'master-detail' : ''}>
             <Section title="Solicitações" description={data.seesAll ? 'Todas as solicitações do consultório.' : 'Solicitações abertas por você.'}>
-              <div className="panel">
+              <div className="list-plain">
                 {data.tickets.length === 0 ? (
                   <EmptyState title="Nenhuma solicitação ainda">Use "Nova solicitação" para falar com a equipe do Fichaclin.</EmptyState>
                 ) : (
@@ -135,7 +135,7 @@ export function SupportPage() {
                 </div>
                 <button className="btn" onClick={() => setGranting({})}><Icon name="lock" size={16} /> Autorizar acesso</button>
               </div>
-              <div className="panel">
+              <div className="list-plain">
                 {data.grants.length === 0 ? (
                   <EmptyState title="Nenhuma autorização concedida">O suporte não tem e nunca teve acesso ao ambiente deste consultório.</EmptyState>
                 ) : (

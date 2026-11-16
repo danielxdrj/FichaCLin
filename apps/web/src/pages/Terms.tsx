@@ -40,7 +40,7 @@ export function TermsPage() {
             <div key={d.id} className="stack" style={{ gap: 8 }}>
               <div className="row">
                 <h3>{d.title}</h3>
-                <span className="tag">v{d.version} · {formatDate(d.publishedAt)}</span>
+                <span className="subtle">Versão {d.version} · {formatDate(d.publishedAt)}</span>
               </div>
               <div className="card card-body" style={{ maxHeight: 180, overflow: 'auto', whiteSpace: 'pre-wrap', fontSize: 13 }}>
                 {d.body.replace(/\*\*/g, '')}
