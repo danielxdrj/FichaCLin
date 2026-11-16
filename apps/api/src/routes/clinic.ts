@@ -24,7 +24,8 @@ export async function clinicRoutes(app: FastifyInstance) {
       const { rows } = await db.query(
         `SELECT id, name, legal_name AS "legalName", cnpj, tech_lead_name AS "techLeadName",
                 tech_lead_cro AS "techLeadCro", phone, email, address, billing_status AS "billingStatus",
-                plan, trial_ends_at AS "trialEndsAt", reminder_legal_basis AS "reminderLegalBasis"
+                plan, trial_ends_at AS "trialEndsAt", reminder_legal_basis AS "reminderLegalBasis",
+                require_mfa AS "requireMfa"
            FROM clinics WHERE id = $1`,
         [a.clinicId],
       );
@@ -54,6 +55,17 @@ export async function clinicRoutes(app: FastifyInstance) {
         ],
       );
       await auditFor(req, db, { action: 'clinic.update', entity: 'clinic', entityId: a.clinicId });
+      return { ok: true };
+    });
+  });
+
+  // REQ-24 (divergência documentada): o consultório decide se exige 2FA de todos os usuários.
+  app.put('/api/clinic/security', { preHandler: guards(requirePermission('clinic:manage')) }, async (req) => {
+    const { requireMfa } = z.object({ requireMfa: z.boolean() }).parse(req.body);
+    const a = auth(req);
+    return tenant(req, async (db) => {
+      await db.query('UPDATE clinics SET require_mfa = $2 WHERE id = $1', [a.clinicId, requireMfa]);
+      await auditFor(req, db, { action: 'clinic.require_mfa', entity: 'clinic', entityId: a.clinicId, metadata: { requireMfa } });
       return { ok: true };
     });
   });

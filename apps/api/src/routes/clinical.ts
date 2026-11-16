@@ -57,13 +57,17 @@ function hashOf(e: EntryRow, signedAt: Date) {
   });
 }
 
-/** REQ-04 / REQ-19: assina (hash + carimbo de tempo). Depois disso o banco trava o registro. */
-async function signEntry(db: PoolClient, entry: EntryRow) {
+/**
+ * REQ-04 / REQ-19: assina (hash + carimbo de tempo). Depois disso o banco trava o registro.
+ * O método registra se a sessão foi confirmada com 2FA ('simples-2fa') ou não ('simples'),
+ * já que o 2FA é opcional por decisão de produto (divergência documentada em MATRIZ.md).
+ */
+async function signEntry(db: PoolClient, entry: EntryRow, mfaVerified: boolean) {
   const signedAt = new Date();
   const hash = hashOf(entry, signedAt);
   await db.query(
-    `UPDATE clinical_entries SET signed_at = $2, content_hash = $3, signature_method = 'simples-2fa' WHERE id = $1`,
-    [entry.id, signedAt, hash],
+    `UPDATE clinical_entries SET signed_at = $2, content_hash = $3, signature_method = $4 WHERE id = $1`,
+    [entry.id, signedAt, hash, mfaVerified ? 'simples-2fa' : 'simples'],
   );
   return { signedAt, hash };
 }
@@ -119,7 +123,7 @@ export async function clinicalRoutes(app: FastifyInstance) {
       const entry = await loadEntry(db, rows[0].id);
       await auditFor(req, db, { action: 'clinical.create', entity: 'clinical_entry', entityId: entry.id, patientId: id, metadata: { kind: body.kind } });
       if (body.sign) {
-        await signEntry(db, entry);
+        await signEntry(db, entry, a.mfaVerified);
         await auditFor(req, db, { action: 'clinical.sign', entity: 'clinical_entry', entityId: entry.id, patientId: id });
       }
       return loadEntry(db, entry.id);
@@ -146,12 +150,11 @@ export async function clinicalRoutes(app: FastifyInstance) {
   app.post('/api/entries/:id/sign', { preHandler: guards(requirePermission('clinical:write'), requireWritable) }, async (req) => {
     const { id } = idParam.parse(req.params);
     const a = auth(req);
-    if (!a.mfaVerified) throw forbidden('Assinatura exige sessão confirmada com 2FA (REQ-04)', 'MFA_REQUIRED');
     return tenant(req, async (db) => {
       const entry = await loadEntry(db, id);
       if (entry.authorId !== a.userId) throw forbidden('Somente o autor pode assinar o registro');
       if (entry.signedAt) throw forbidden('Registro já assinado', 'ENTRY_SIGNED');
-      await signEntry(db, entry);
+      await signEntry(db, entry, a.mfaVerified);
       await auditFor(req, db, { action: 'clinical.sign', entity: 'clinical_entry', entityId: id, patientId: entry.patientId });
       return loadEntry(db, id);
     });
@@ -162,7 +165,6 @@ export async function clinicalRoutes(app: FastifyInstance) {
     const { id } = idParam.parse(req.params);
     const { text } = z.object({ text: z.string().trim().min(2) }).parse(req.body);
     const a = auth(req);
-    if (!a.mfaVerified) throw forbidden('Assinatura exige sessão confirmada com 2FA (REQ-04)', 'MFA_REQUIRED');
     const author = await authorInfo(a.userId);
     const result = await tenant(req, async (db) => {
       const original = await loadEntry(db, id);
@@ -173,7 +175,7 @@ export async function clinicalRoutes(app: FastifyInstance) {
         [a.clinicId, original.patientId, { text }, a.userId, author.name, author.cro, id],
       );
       const entry = await loadEntry(db, rows[0].id);
-      await signEntry(db, entry);
+      await signEntry(db, entry, a.mfaVerified);
       await auditFor(req, db, { action: 'clinical.addendum', entity: 'clinical_entry', entityId: entry.id, patientId: original.patientId, metadata: { amends: id } });
       return loadEntry(db, entry.id);
     });

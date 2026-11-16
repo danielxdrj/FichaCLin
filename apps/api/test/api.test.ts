@@ -82,11 +82,58 @@ describe('Segurança da requisição', () => {
 });
 
 describe('Login — REQ-24 / REQ-25 / REQ-03', () => {
-  it('REQ-24: dono sem 2FA não acessa dados', async () => {
+  it('REQ-24: quem ativou o 2FA precisa do código para acessar dados', async () => {
     const s = await login('helena', { mfa: false, acceptTerms: false, clinic: null });
     const r = await s.call('GET', '/api/patients');
     expect(r.status).toBe(401);
     expect(r.body.code).toBe('MFA_REQUIRED');
+  });
+
+  it('REQ-24 (divergência): sem 2FA ativado, dentista entra só com senha e assina como "simples"', async () => {
+    const helena = await login('helena');
+    await helena.call('POST', '/api/users', {
+      name: 'Dono Sem 2FA', email: 'dono.sem2fa@dev.fichaclin.test', role: 'dentist', cro: 'CRO-SP 00009', password: 'senha-teste-123',
+    });
+    const res = await app.inject({
+      method: 'POST', url: '/api/auth/login', headers: { 'x-fichaclin': '1' },
+      payload: { email: 'dono.sem2fa@dev.fichaclin.test', password: 'senha-teste-123' },
+    });
+    const cookie = String(res.headers['set-cookie']).split(';')[0];
+    const call = async (method: Method, url: string, body?: unknown) => {
+      const r = await app.inject({ method, url, headers: { cookie, 'x-fichaclin': '1' }, payload: body as any });
+      return { status: r.statusCode, body: r.body ? JSON.parse(r.body) : null };
+    };
+    expect((await call('GET', '/api/auth/me')).body.mfa).toMatchObject({ required: false, enabled: false });
+    const pending = await call('GET', '/api/legal/pending');
+    await call('POST', '/api/legal/accept', { documentIds: pending.body.documents.map((d: any) => d.id) });
+    expect((await call('POST', '/api/auth/select-clinic', { clinicId: clinicA })).status).toBe(200);
+    const patientId = (await owner.query("SELECT id FROM patients WHERE full_name = 'Mariana Costa Ribeiro'")).rows[0].id;
+    const e = await call('POST', `/api/patients/${patientId}/entries`, { kind: 'evolution', content: { title: 'Teste', text: 'Sem 2FA' }, sign: true });
+    expect(e.status).toBe(201);
+    expect(e.body.signatureMethod).toBe('simples');
+  });
+
+  it('REQ-24: consultório pode exigir 2FA; QR code é gerado no cadastro', async () => {
+    const helena = await login('helena');
+    expect((await helena.call('PUT', '/api/clinic/security', { requireMfa: true })).status).toBe(200);
+    const res = await app.inject({
+      method: 'POST', url: '/api/auth/login', headers: { 'x-fichaclin': '1' },
+      payload: { email: 'dono.sem2fa@dev.fichaclin.test', password: 'senha-teste-123' },
+    });
+    const cookie = String(res.headers['set-cookie']).split(';')[0];
+    const call = async (method: Method, url: string, body?: unknown) => {
+      const r = await app.inject({ method, url, headers: { cookie, 'x-fichaclin': '1' }, payload: body as any });
+      return { status: r.statusCode, body: r.body ? JSON.parse(r.body) : null };
+    };
+    expect((await call('GET', '/api/patients')).body.code).toBe('MFA_REQUIRED');
+    const setup = await call('POST', '/api/auth/2fa/setup');
+    expect(setup.body.qr).toMatch(/^data:image\/png;base64,/);
+    expect((await call('POST', '/api/auth/2fa/verify', { code: currentTotp(setup.body.secret) })).status).toBe(200);
+    // Com o consultório exigindo, não dá para desativar.
+    const dis = await call('POST', '/api/auth/2fa/disable', { code: currentTotp(setup.body.secret) });
+    expect(dis.body.code).toBe('MFA_REQUIRED_BY_CLINIC');
+    await helena.call('PUT', '/api/clinic/security', { requireMfa: false });
+    expect((await call('POST', '/api/auth/2fa/disable', { code: currentTotp(setup.body.secret) })).status).toBe(200);
   });
 
   it('REQ-25: bloqueia a conta após 5 senhas erradas', async () => {
@@ -273,5 +320,71 @@ describe('Auditoria — REQ-07 / REQ-22 / REQ-30 / REQ-33', () => {
     expect(support.grants[0].active).toBe(true);
     expect(support.dpo.email).toBeTruthy();
     expect((await s.call('GET', '/api/audit?action=support')).body.events[0].action).toBe('support.grant');
+  });
+});
+
+describe('Cadastro do cliente e dispositivo lembrado', () => {
+  const inject = async (cookie: string, method: Method, url: string, body?: unknown) => {
+    const r = await app.inject({ method, url, headers: { cookie, 'x-fichaclin': '1' }, payload: body as any });
+    return { status: r.statusCode, body: r.body ? JSON.parse(r.body) : null, headers: r.headers };
+  };
+
+  it('cria conta com 7 dias grátis, já dentro do consultório, sem exigir 2FA', async () => {
+    const r = await app.inject({
+      method: 'POST', url: '/api/auth/signup', headers: { 'x-fichaclin': '1' },
+      payload: { name: 'Cliente Novo', email: 'cliente.novo@dev.fichaclin.test', password: 'senha-teste-123', clinicName: 'Consultório Novo', acceptTerms: true },
+    });
+    expect(r.statusCode).toBe(201);
+    const cookie = String(r.headers['set-cookie']).split(';')[0];
+    const me = (await inject(cookie, 'GET', '/api/auth/me')).body;
+    expect(me.mfa).toMatchObject({ required: false, enabled: false });
+    expect(me.pendingLegal).toEqual([]);
+    expect(me.current).toMatchObject({ role: 'owner', billingStatus: 'trial' });
+    const clinic = (await inject(cookie, 'GET', '/api/clinic')).body;
+    const days = (new Date(clinic.trialEndsAt).getTime() - Date.now()) / 86400000;
+    expect(days).toBeGreaterThan(6.9);
+    expect(days).toBeLessThanOrEqual(7);
+    // Modelo de anamnese inicial criado; isolamento: não vê pacientes de outros consultórios.
+    expect((await inject(cookie, 'GET', '/api/anamnesis/template')).body.template.version).toBe(1);
+    expect((await inject(cookie, 'GET', '/api/patients')).body.patients).toEqual([]);
+  });
+
+  it('recusa cadastro sem aceite dos termos ou com e-mail repetido', async () => {
+    const base = { name: 'Outro Cliente', email: 'cliente.novo@dev.fichaclin.test', password: 'senha-teste-123', clinicName: 'X' + 'Y' };
+    const noTerms = await app.inject({ method: 'POST', url: '/api/auth/signup', headers: { 'x-fichaclin': '1' }, payload: base });
+    expect(noTerms.statusCode).toBe(400);
+    const dup = await app.inject({ method: 'POST', url: '/api/auth/signup', headers: { 'x-fichaclin': '1' }, payload: { ...base, acceptTerms: true } });
+    expect(dup.statusCode).toBe(409);
+  });
+
+  it('com "não solicitar neste dispositivo", o próximo login dispensa o código', async () => {
+    const login = () => app.inject({
+      method: 'POST', url: '/api/auth/login', headers: { 'x-fichaclin': '1', cookie: trusted },
+      payload: { email: 'cliente.novo@dev.fichaclin.test', password: 'senha-teste-123' },
+    });
+    let trusted = '';
+    let cookie = String((await login()).headers['set-cookie']).split(';')[0];
+    const setup = (await inject(cookie, 'POST', '/api/auth/2fa/setup')).body;
+    const verify = await inject(cookie, 'POST', '/api/auth/2fa/verify', { code: currentTotp(setup.secret), rememberDevice: true });
+    expect(verify.status).toBe(200);
+    trusted = String(verify.headers['set-cookie']).split(';')[0];
+    expect(trusted).toMatch(/^fc_trusted=/);
+
+    // Mesmo dispositivo: entra direto.
+    cookie = String((await login()).headers['set-cookie']).split(';')[0];
+    expect((await inject(cookie, 'GET', '/api/auth/me')).body.mfa).toMatchObject({ required: true, verified: true });
+
+    // Outro dispositivo (sem o cookie): pede o código.
+    const other = await app.inject({
+      method: 'POST', url: '/api/auth/login', headers: { 'x-fichaclin': '1' },
+      payload: { email: 'cliente.novo@dev.fichaclin.test', password: 'senha-teste-123' },
+    });
+    const otherCookie = String(other.headers['set-cookie']).split(';')[0];
+    expect((await inject(otherCookie, 'GET', '/api/auth/me')).body.mfa.verified).toBe(false);
+
+    // Revogar dispositivos: volta a pedir o código.
+    await inject(cookie, 'POST', '/api/auth/trusted-devices/revoke');
+    cookie = String((await login()).headers['set-cookie']).split(';')[0];
+    expect((await inject(cookie, 'GET', '/api/auth/me')).body.mfa.verified).toBe(false);
   });
 });

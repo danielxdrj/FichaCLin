@@ -1,11 +1,15 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import QRCode from 'qrcode';
 import { config } from '../config.js';
 import { getPool } from '../db/pool.js';
 import { withTenant } from '../db/tenant.js';
-import { auth, requireMfa, requireSession, requireTerms } from '../http/context.js';
-import { forbidden, HttpError, unauthorized } from '../http/errors.js';
-import { hashPassword, verifyPassword } from '../services/password.js';
+import { auth, pendingLegalDocs, requireMfa, requireSession, requireTerms } from '../http/context.js';
+import { badRequest, conflict, forbidden, HttpError, unauthorized } from '../http/errors.js';
+import { DEFAULT_ANAMNESIS, TRIAL_DAYS } from '../domain/anamnesis-default.js';
+import { hashPassword, passwordProblems, verifyPassword } from '../services/password.js';
+import { countTrustedDevices, isTrustedDevice, revokeTrustedDevices, trustDevice, TRUSTED_COOKIE } from '../services/trusted-device.js';
 import { createSession, revokeSession, updateSession } from '../services/session.js';
 import { newTotpSecret, totpUri, verifyTotp } from '../services/totp.js';
 
@@ -37,6 +41,18 @@ async function registerFailure(user: UserRow): Promise<void> {
   }
 }
 
+async function startSession(reply: FastifyReply, userId: string, ip: string, userAgent?: string) {
+  const { token, expires, sessionId } = await createSession(userId, ip, userAgent);
+  reply.setCookie(config.session.cookieName, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: config.isProd, // REQ-27: HTTPS em produção
+    path: '/',
+    expires,
+  });
+  return sessionId;
+}
+
 function lockedError(until: Date) {
   const minutes = Math.max(1, Math.ceil((until.getTime() - Date.now()) / 60000));
   return new HttpError(423, 'ACCOUNT_LOCKED', `Conta bloqueada por excesso de tentativas. Tente novamente em ${minutes} min.`);
@@ -58,15 +74,66 @@ export async function authRoutes(app: FastifyInstance) {
     }
     await getPool().query('UPDATE users SET failed_logins = 0, locked_until = NULL WHERE id = $1', [user.id]);
 
-    const { token, expires } = await createSession(user.id, req.ip, req.headers['user-agent']);
-    reply.setCookie(config.session.cookieName, token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: config.isProd, // REQ-27: HTTPS em produção
-      path: '/',
-      expires,
-    });
+    const sessionId = await startSession(reply, user.id, req.ip, req.headers['user-agent']);
+    // Dispositivo marcado como confiável: não pede o código de novo.
+    if (user.totp_enabled && (await isTrustedDevice(user.id, req.cookies?.[TRUSTED_COOKIE]))) {
+      await updateSession(sessionId, { mfaVerified: true });
+    }
     return { ok: true };
+  });
+
+  // Cadastro do cliente: cria a conta do dono e o consultório com 7 dias grátis.
+  app.post('/api/auth/signup', async (req, reply) => {
+    const body = z
+      .object({
+        name: z.string().trim().min(3, 'Informe seu nome completo'),
+        email: z.string().trim().toLowerCase().email('E-mail inválido'),
+        password: z.string(),
+        clinicName: z.string().trim().min(2, 'Informe o nome do consultório'),
+        cro: z.string().trim().optional().nullable(),
+        acceptTerms: z.literal(true, { errorMap: () => ({ message: 'Aceite os Termos de Uso e a Política de Privacidade' }) }),
+      })
+      .parse(req.body);
+    const problem = passwordProblems(body.password);
+    if (problem) throw badRequest(problem);
+    const exists = await getPool().query('SELECT 1 FROM users WHERE email = $1', [body.email]);
+    if (exists.rowCount) throw conflict('Já existe uma conta com este e-mail. Faça login.');
+
+    const userId = (
+      await getPool().query<{ id: string }>(
+        'INSERT INTO users (email, name, cro, password_hash) VALUES ($1, $2, $3, $4) RETURNING id',
+        [body.email, body.name, body.cro || null, await hashPassword(body.password)],
+      )
+    ).rows[0].id;
+    // REQ-03: o aceite marcado no cadastro é registrado com versão, data, IP e usuário.
+    const docs = await pendingLegalDocs(userId);
+    for (const d of docs) {
+      await getPool().query(
+        'INSERT INTO legal_acceptances (document_id, user_id, ip, user_agent) VALUES ($1, $2, $3, $4)',
+        [d.id, userId, req.ip, req.headers['user-agent'] ?? null],
+      );
+    }
+    const clinicId = randomUUID();
+    await withTenant({ clinicId, userId }, async (db) => {
+      await db.query(
+        `INSERT INTO clinics (id, name, billing_status, trial_ends_at, tech_lead_name, tech_lead_cro)
+         VALUES ($1, $2, 'trial', now() + make_interval(days => $3), $4, $5)`,
+        [clinicId, body.clinicName, TRIAL_DAYS, body.name, body.cro || null],
+      );
+      await db.query("INSERT INTO memberships (clinic_id, user_id, role) VALUES ($1, $2, 'owner')", [clinicId, userId]);
+      await db.query(
+        'INSERT INTO anamnesis_templates (clinic_id, version, title, questions, created_by) VALUES ($1, 1, $2, $3, $4)',
+        [clinicId, DEFAULT_ANAMNESIS.title, JSON.stringify(DEFAULT_ANAMNESIS.questions), userId],
+      );
+      await db.query(
+        "INSERT INTO audit_log (clinic_id, user_id, action, entity, entity_id, ip) VALUES ($1, $2, 'clinic.signup', 'clinic', $1, $3)",
+        [clinicId, userId, req.ip],
+      );
+    });
+    const sessionId = await startSession(reply, userId, req.ip, req.headers['user-agent']);
+    await updateSession(sessionId, { clinicId });
+    reply.code(201);
+    return { ok: true, trialDays: TRIAL_DAYS };
   });
 
   app.post('/api/auth/logout', { preHandler: [requireSession] }, async (req, reply) => {
@@ -95,7 +162,12 @@ export async function authRoutes(app: FastifyInstance) {
       : [];
     return {
       user: { id: user.id, name: user.name, email: user.email, cro: user.cro },
-      mfa: { required: a.mfaRequired, verified: a.mfaVerified, enabled: user.totp_enabled },
+      mfa: {
+        required: a.mfaRequired,
+        verified: a.mfaVerified,
+        enabled: user.totp_enabled,
+        trustedDevices: user.totp_enabled ? await countTrustedDevices(user.id) : 0,
+      },
       pendingLegal: mfaDone ? a.pendingLegal : [],
       clinics,
       current: a.clinicId
@@ -104,19 +176,55 @@ export async function authRoutes(app: FastifyInstance) {
     };
   });
 
-  // REQ-24: cadastro do autenticador na primeira entrada de dono/dentista.
+  // REQ-24: cadastro do autenticador por QR code — pelo próprio usuário (Configurações · Segurança)
+  // ou no login, quando o consultório exige 2FA e o usuário ainda não cadastrou.
   app.post('/api/auth/2fa/setup', { preHandler: [requireSession] }, async (req) => {
     const a = auth(req);
     const { rows } = await getPool().query<UserRow>('SELECT * FROM users WHERE id = $1', [a.userId]);
     if (rows[0].totp_enabled) throw new HttpError(409, 'MFA_ALREADY_ENABLED', 'Autenticador já configurado');
     const secret = newTotpSecret();
     await getPool().query('UPDATE users SET totp_secret = $2 WHERE id = $1', [a.userId, secret]);
-    return { secret, uri: totpUri(rows[0].email, secret) };
+    const uri = totpUri(rows[0].email, secret);
+    // QR gerado no servidor: o segredo não passa por nenhum serviço externo.
+    const qr = await QRCode.toDataURL(uri, { margin: 1, width: 220 });
+    return { secret, uri, qr };
   });
 
-  app.post('/api/auth/2fa/verify', { preHandler: [requireSession] }, async (req) => {
+  // Desativar o 2FA exige um código válido e não é permitido se algum consultório exigir 2FA.
+  app.post('/api/auth/2fa/disable', { preHandler: [requireSession, requireMfa] }, async (req) => {
     const a = auth(req);
     const { code } = z.object({ code: z.string().trim() }).parse(req.body);
+    const { rows } = await getPool().query<UserRow>('SELECT * FROM users WHERE id = $1', [a.userId]);
+    const user = rows[0];
+    if (!user.totp_enabled || !user.totp_secret) throw new HttpError(409, 'MFA_NOT_ENABLED', '2FA não está ativado');
+    const required = await withTenant({ userId: a.userId }, async (db) =>
+      (await db.query(
+        'SELECT 1 FROM memberships m JOIN clinics c ON c.id = m.clinic_id WHERE m.user_id = $1 AND m.active AND c.require_mfa',
+        [a.userId],
+      )).rowCount,
+    );
+    if (required) throw forbidden('Um consultório ao qual você está vinculado exige 2FA', 'MFA_REQUIRED_BY_CLINIC');
+    if (!verifyTotp(user.totp_secret, code)) {
+      await registerFailure(user);
+      throw unauthorized('INVALID_MFA', 'Código inválido');
+    }
+    await getPool().query('UPDATE users SET totp_enabled = false, totp_secret = NULL WHERE id = $1', [a.userId]);
+    await revokeTrustedDevices(a.userId);
+    return { ok: true };
+  });
+
+  // "Esquecer dispositivos": o código volta a ser pedido em todos os navegadores.
+  app.post('/api/auth/trusted-devices/revoke', { preHandler: [requireSession, requireMfa] }, async (req, reply) => {
+    await revokeTrustedDevices(auth(req).userId);
+    reply.clearCookie(TRUSTED_COOKIE, { path: '/api/auth' });
+    return { ok: true };
+  });
+
+  app.post('/api/auth/2fa/verify', { preHandler: [requireSession] }, async (req, reply) => {
+    const a = auth(req);
+    const { code, rememberDevice } = z
+      .object({ code: z.string().trim(), rememberDevice: z.boolean().default(false) })
+      .parse(req.body);
     const { rows } = await getPool().query<UserRow>('SELECT * FROM users WHERE id = $1', [a.userId]);
     const user = rows[0];
     if (user.locked_until && user.locked_until > new Date()) throw lockedError(user.locked_until);
@@ -127,6 +235,7 @@ export async function authRoutes(app: FastifyInstance) {
     }
     await getPool().query('UPDATE users SET totp_enabled = true, failed_logins = 0 WHERE id = $1', [a.userId]);
     await updateSession(a.sessionId, { mfaVerified: true });
+    if (rememberDevice) await trustDevice(reply, a.userId, req.ip, req.headers['user-agent']);
     return { ok: true };
   });
 

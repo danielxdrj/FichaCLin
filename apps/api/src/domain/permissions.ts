@@ -39,7 +39,12 @@ export function can(perms: readonly Permission[], needed: Permission): boolean {
   return perms.includes(needed);
 }
 
-/** REQ-24: 2FA obrigatório para dentistas e administradores. */
-export function requiresMfa(roles: Role[]): boolean {
-  return roles.some((r) => r === 'owner' || r === 'dentist');
+/**
+ * REQ-24 — DIVERGÊNCIA DOCUMENTADA (decisão de produto, 16/11/2026):
+ * o PDF recomenda 2FA obrigatório para dono e dentista; o Fichaclin torna o 2FA opcional.
+ * É exigido quando o próprio usuário ativou, ou quando algum consultório ao qual ele
+ * está vinculado exige 2FA de todos os usuários (configuração do controlador).
+ */
+export function requiresMfa(opts: { userEnabled: boolean; clinicRequires: boolean }): boolean {
+  return opts.userEnabled || opts.clinicRequires;
 }

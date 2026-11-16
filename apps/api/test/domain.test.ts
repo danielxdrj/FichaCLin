@@ -48,7 +48,7 @@ describe('REQ-12 / REQ-14 / REQ-15 — consentimentos', () => {
   });
 });
 
-describe('REQ-22 / REQ-24 — papéis e 2FA', () => {
+describe('REQ-22 / REQ-24 (divergência) — papéis e 2FA', () => {
   it('recepção não acessa dados clínicos por padrão', () => {
     const perms = effectivePermissions('reception', null);
     expect(can(perms, 'patients:write')).toBe(true);
@@ -59,10 +59,10 @@ describe('REQ-22 / REQ-24 — papéis e 2FA', () => {
     expect(effectivePermissions('dentist', ['clinical:read', 'audit:read', 'users:manage'])).toEqual(['clinical:read']);
   });
 
-  it('2FA é obrigatório para dono e dentista, não para recepção', () => {
-    expect(requiresMfa(['owner'])).toBe(true);
-    expect(requiresMfa(['dentist'])).toBe(true);
-    expect(requiresMfa(['reception'])).toBe(false);
+  it('2FA é opcional: exigido só se o usuário ativou ou se o consultório exige', () => {
+    expect(requiresMfa({ userEnabled: false, clinicRequires: false })).toBe(false);
+    expect(requiresMfa({ userEnabled: true, clinicRequires: false })).toBe(true);
+    expect(requiresMfa({ userEnabled: false, clinicRequires: true })).toBe(true);
   });
 });
 

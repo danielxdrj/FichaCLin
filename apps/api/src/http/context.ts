@@ -52,8 +52,10 @@ export async function loadAuth(req: FastifyRequest): Promise<void> {
     session.user_id,
   ]);
   const ctx = await withTenant({ userId: session.user_id, clinicId: session.clinic_id }, async (db) => {
-    const memberships = await db.query<{ clinic_id: string; role: Role; permissions: string[] | null }>(
-      'SELECT clinic_id, role, permissions FROM memberships WHERE user_id = $1 AND active',
+    const memberships = await db.query<{ clinic_id: string; role: Role; permissions: string[] | null; require_mfa: boolean }>(
+      `SELECT m.clinic_id, m.role, m.permissions, c.require_mfa
+         FROM memberships m JOIN clinics c ON c.id = m.clinic_id
+        WHERE m.user_id = $1 AND m.active`,
       [session.user_id],
     );
     const current = memberships.rows.find((m) => m.clinic_id === session.clinic_id) ?? null;
@@ -64,14 +66,14 @@ export async function loadAuth(req: FastifyRequest): Promise<void> {
       ]);
       billingStatus = c.rows[0]?.billing_status ?? null;
     }
-    return { roles: memberships.rows.map((m) => m.role), current, billingStatus };
+    return { clinicRequiresMfa: memberships.rows.some((m) => m.require_mfa), current, billingStatus };
   });
 
   req.auth = {
     sessionId: session.id,
     userId: session.user_id,
     mfaVerified: session.mfa_verified,
-    mfaRequired: Boolean(user.rows[0]?.totp_enabled) || requiresMfa(ctx.roles),
+    mfaRequired: requiresMfa({ userEnabled: Boolean(user.rows[0]?.totp_enabled), clinicRequires: ctx.clinicRequiresMfa }),
     pendingLegal: await pendingLegalDocs(session.user_id),
     clinicId: ctx.current ? session.clinic_id : null,
     role: ctx.current?.role ?? null,
@@ -89,7 +91,7 @@ export const requireSession: Guard = async (req) => {
   if (!req.auth) throw unauthorized();
 };
 
-/** REQ-24: nenhuma rota de dados antes de concluir o 2FA. */
+/** REQ-24: quando o 2FA é exigido (pelo usuário ou pelo consultório), nenhuma rota de dados antes de concluí-lo. */
 export const requireMfa: Guard = async (req) => {
   if (!req.auth) throw unauthorized();
   if (req.auth.mfaRequired && !req.auth.mfaVerified) throw unauthorized('MFA_REQUIRED', 'Confirme o código do autenticador');
