@@ -302,6 +302,20 @@ describe('Auditoria — REQ-07 / REQ-22 / REQ-30 / REQ-33', () => {
     expect((await s.call('GET', '/api/audit/verify')).body.intact).toBe(true);
   });
 
+  it('auditoria filtra por usuário e por vários tipos de ação', async () => {
+    const s = await login('helena');
+    const users = (await s.call('GET', '/api/audit/users')).body.users as { id: string; name: string }[];
+    const helena = users.find((u) => u.name === 'Dra. Helena Prado')!;
+    expect(helena).toBeTruthy();
+    const byUser = (await s.call('GET', `/api/audit?userId=${helena.id}`)).body.events;
+    expect(byUser.length).toBeGreaterThan(0);
+    expect(byUser.every((e: any) => e.userId === helena.id)).toBe(true);
+    const views = (await s.call('GET', '/api/audit?action=patient.view,record.export')).body.events.map((e: any) => e.action);
+    expect(views.length).toBeGreaterThan(0);
+    expect(views.every((a: string) => a === 'patient.view' || a.startsWith('record.export'))).toBe(true);
+    expect((await s.call('GET', '/api/audit?userId=nao-e-uuid')).status).toBe(400);
+  });
+
   it('dentista não acessa a auditoria', async () => {
     const s = await login('rafael');
     expect((await s.call('GET', '/api/audit')).status).toBe(403);
