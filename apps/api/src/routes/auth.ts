@@ -130,6 +130,12 @@ export async function authRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
+  // Volta ao seletor de consultório (tela 09).
+  app.post('/api/auth/leave-clinic', { preHandler: [requireSession] }, async (req) => {
+    await updateSession(auth(req).sessionId, { clinicId: null });
+    return { ok: true };
+  });
+
   // REQ-26: só é possível entrar em consultório com vínculo ativo (RLS confirma).
   app.post('/api/auth/select-clinic', { preHandler: [requireSession, requireMfa, requireTerms] }, async (req) => {
     const a = auth(req);

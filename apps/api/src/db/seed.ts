@@ -60,13 +60,13 @@ const TEMPLATE_QUESTIONS = [
 ];
 
 const PATIENTS = [
-  { fullName: 'Mariana Costa Ribeiro', birthDate: '1988-05-14', sex: 'Feminino', profession: 'Arquiteta', maritalStatus: 'Casada', phone: '(11) 90000-0001', email: 'mariana.ribeiro@exemplo.test', city: 'São Paulo' },
-  { fullName: 'João Pedro Almeida', birthDate: '1975-11-02', sex: 'Masculino', profession: 'Engenheiro', maritalStatus: 'Divorciado', phone: '(11) 90000-0002', email: 'joao.almeida@exemplo.test', city: 'São Paulo' },
-  { fullName: 'Beatriz Nogueira Santos', birthDate: '1996-03-21', sex: 'Feminino', profession: 'Designer', maritalStatus: 'Solteira', phone: '(11) 90000-0003', email: null, city: 'Osasco' },
-  { fullName: 'Lucas Ferreira Gomes', birthDate: '2015-08-09', sex: 'Masculino', profession: 'Estudante', maritalStatus: 'Solteiro', phone: '(11) 90000-0004', email: null, city: 'São Paulo',
+  { fullName: 'Mariana Costa Ribeiro', birthDate: '1988-05-14', sex: 'Feminino', profession: 'Arquiteta', maritalStatus: 'Casado(a)', phone: '(11) 90000-0001', email: 'mariana.ribeiro@exemplo.test', city: 'São Paulo' },
+  { fullName: 'João Pedro Almeida', birthDate: '1975-11-02', sex: 'Masculino', profession: 'Engenheiro', maritalStatus: 'Divorciado(a)', phone: '(11) 90000-0002', email: 'joao.almeida@exemplo.test', city: 'São Paulo' },
+  { fullName: 'Beatriz Nogueira Santos', birthDate: '1996-03-21', sex: 'Feminino', profession: 'Designer', maritalStatus: 'Solteiro(a)', phone: '(11) 90000-0003', email: null, city: 'Osasco' },
+  { fullName: 'Lucas Ferreira Gomes', birthDate: '2015-08-09', sex: 'Masculino', profession: 'Estudante', maritalStatus: 'Solteiro(a)', phone: '(11) 90000-0004', email: null, city: 'São Paulo',
     guardian: { name: 'Patrícia Ferreira Gomes', cpf: '000.000.000-00', relationship: 'Mãe', phone: '(11) 90000-0005' } },
-  { fullName: 'Antônio Carlos Mendes', birthDate: '1952-01-30', sex: 'Masculino', profession: 'Aposentado', maritalStatus: 'Casado', phone: '(11) 90000-0006', email: null, city: 'Guarulhos' },
-  { fullName: 'Fernanda Oliveira Prado', birthDate: '1983-12-11', sex: 'Feminino', profession: 'Professora', maritalStatus: 'Casada', phone: '(11) 90000-0007', email: 'fernanda.prado@exemplo.test', city: 'São Paulo' },
+  { fullName: 'Antônio Carlos Mendes', birthDate: '1952-01-30', sex: 'Masculino', profession: 'Aposentado', maritalStatus: 'Casado(a)', phone: '(11) 90000-0006', email: null, city: 'Guarulhos' },
+  { fullName: 'Fernanda Oliveira Prado', birthDate: '1983-12-11', sex: 'Feminino', profession: 'Professora', maritalStatus: 'Casado(a)', phone: '(11) 90000-0007', email: 'fernanda.prado@exemplo.test', city: 'São Paulo' },
 ];
 
 export async function seed(ownerUrl = config.ownerDatabaseUrl): Promise<'seeded' | 'skipped'> {
