@@ -73,15 +73,13 @@ export function SupportPage() {
       <PageHead
         title="Suporte"
         subtitle="Canal oficial de atendimento do Fichaclin. Acompanhe aqui suas solicitações."
-        actions={<>
-          <button className="btn" onClick={() => setCreating('sugestao')}>Sugerir melhoria</button>
-          <button className="btn btn-primary" onClick={() => setCreating('')}>Nova solicitação</button>
-        </>}
+        actions={<button className="btn btn-primary" onClick={() => setCreating('')}>Nova solicitação</button>}
       />
       <ErrorAlert error={error} />
       <p className="muted" style={{ marginTop: -8, marginBottom: 20 }}>
-        Sentiu falta de alguma área ou tem uma ideia para o Fichaclin? Use <strong>Sugerir melhoria</strong>: toda
-        sugestão é lida pela equipe e respondida no histórico da solicitação.
+        Sentiu falta de alguma área ou tem uma ideia para o Fichaclin? Use <strong style={{ fontWeight: 500 }}>Nova solicitação</strong> e
+        escolha o motivo <strong style={{ fontWeight: 500 }}>{CATEGORY_LABEL.sugestao}</strong>: toda sugestão é lida pela equipe e
+        respondida no histórico da solicitação.
       </p>
       {!data ? <Loading /> : (
         <>
@@ -339,7 +337,14 @@ function NewTicketModal({ initialCategory, onClose, onDone }: { initialCategory:
       <form className="stack" onSubmit={submit}>
         <div className="form-grid">
           <Field className="col-8" label="Motivo">
-            <Select value={form.category} onChange={(e) => set('category', e.target.value)} required
+            <Select value={form.category} required
+              onChange={(e) => {
+                const category = e.target.value;
+                // Sugestão costuma ter prioridade baixa; só ajusta se o usuário ainda não mexeu na prioridade.
+                const priority = category === 'sugestao' && form.priority === 'normal' ? 'baixa'
+                  : category !== 'sugestao' && form.category === 'sugestao' && form.priority === 'baixa' ? 'normal' : form.priority;
+                setForm({ ...form, category, priority });
+              }}
               options={[['', 'Selecione'], ...Object.entries(CATEGORY_LABEL)]} />
           </Field>
           <Field className="col-4" label="Prioridade">
