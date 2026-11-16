@@ -30,8 +30,9 @@ agentes; ele não fixa a stack do Fichaclin. A página "Fichaclin — Protótipo
 - A API conecta com o papel `fichaclin_app`, que **não** é dono das tabelas e não tem `BYPASSRLS`.
 - Cada requisição autenticada abre uma transação e executa
   `set_config('app.clinic_id', <id>, true)` e `set_config('app.user_id', <id>, true)`.
-- Toda tabela com dados de consultório tem `ENABLE` + `FORCE ROW LEVEL SECURITY` e política
-  `clinic_id = current_setting('app.clinic_id')::uuid`.
+- Toda tabela com dados de consultório tem `ENABLE ROW LEVEL SECURITY` e política
+  `clinic_id = app_clinic_id()` (lê `current_setting('app.clinic_id')`). Como `fichaclin_app` não é
+  dono das tabelas, o RLS sempre se aplica a ele; o papel dono só é usado em migrações e no seed.
 - Um bug de filtro na aplicação não vaza dados entre consultórios, pois o próprio banco filtra.
 
 ### Imutabilidade (REQ-05, REQ-07, REQ-19, REQ-21)
