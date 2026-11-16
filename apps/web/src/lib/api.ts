@@ -19,7 +19,10 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
   const data = text ? JSON.parse(text) : null;
   if (!res.ok) {
     const err = new ApiError(res.status, data?.code ?? 'ERROR', data?.message ?? 'Erro inesperado', data?.details);
-    if (res.status === 401 || data?.code === 'TERMS_REQUIRED' || data?.code === 'CLINIC_REQUIRED') {
+    // Sessão expirou ou mudou durante o uso: recarrega o estado da sessão.
+    // Rotas /auth/* ficam de fora — o próprio /auth/me responde 401 quando deslogado (evita loop).
+    const sessionLost = res.status === 401 || data?.code === 'TERMS_REQUIRED' || data?.code === 'CLINIC_REQUIRED';
+    if (sessionLost && !path.startsWith('/auth/')) {
       window.dispatchEvent(new CustomEvent('fichaclin:auth-changed'));
     }
     throw err;
