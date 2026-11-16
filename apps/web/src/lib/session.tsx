@@ -3,7 +3,7 @@ import { api, ApiError } from './api';
 
 export interface Me {
   user: { id: string; name: string; email: string; cro: string | null };
-  mfa: { required: boolean; verified: boolean; enabled: boolean };
+  mfa: { required: boolean; verified: boolean; enabled: boolean; trustedDevices: number };
   pendingLegal: { id: string; kind: string; version: number; title: string }[];
   clinics: { id: string; name: string; role: string; billingStatus: string; city: string | null }[];
   current: { clinicId: string; role: string; permissions: string[]; billingStatus: string } | null;

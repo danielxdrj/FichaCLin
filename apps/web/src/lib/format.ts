@@ -62,4 +62,6 @@ export const ACTION_LABEL: Record<string, string> = {
   'support.grant': 'Autorizou acesso do suporte',
   'support.revoke': 'Revogou acesso do suporte',
   'session.enter_clinic': 'Entrou no consultório',
+  'clinic.signup': 'Criou a conta do consultório',
+  'clinic.require_mfa': 'Alterou exigência de 2FA',
 };

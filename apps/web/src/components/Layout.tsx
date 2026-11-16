@@ -76,6 +76,15 @@ export function Layout() {
             </button>
           )}
         </header>
+        {!me.mfa.enabled && (
+          <div className="alert info" style={{ borderRadius: 0, alignItems: 'center' }}>
+            <Icon name="shield" />
+            <span style={{ flex: 1 }}>
+              Recomendamos ativar a verificação em duas etapas (2FA) para proteger os prontuários do consultório.
+            </span>
+            <NavLink className="btn btn-sm btn-primary" to="/configuracoes/seguranca">Ativar agora</NavLink>
+          </div>
+        )}
         {suspended && (
           <div className="alert danger" style={{ borderRadius: 0 }}>
             <Icon name="lock" /> Consultório suspenso por inadimplência. O acesso está em modo somente leitura; a exportação

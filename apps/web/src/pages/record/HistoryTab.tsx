@@ -9,7 +9,7 @@ import { STATUS } from './OdontogramTab';
 
 interface Entry {
   id: string; kind: 'evolution' | 'odontogram' | 'addendum'; content: any; authorId: string; authorName: string; authorCro: string | null;
-  amendsId: string | null; createdAt: string; signedAt: string | null; contentHash: string | null;
+  amendsId: string | null; createdAt: string; signedAt: string | null; contentHash: string | null; signatureMethod: string | null;
 }
 
 /** 06 — Histórico / evolução (REQ-19, REQ-04). */
@@ -86,7 +86,8 @@ export function HistoryTab({ patient, readOnly }: { patient: Patient; readOnly: 
                   </p>
                 )}
                 <span className="subtle">
-                  {e.authorName}{e.authorCro ? ` · ${e.authorCro}` : ''}{e.signedAt ? ` · assinado em ${formatDateTime(e.signedAt)}` : ''}
+                  {e.authorName}{e.authorCro ? ` · ${e.authorCro}` : ''}
+                  {e.signedAt ? ` · assinado em ${formatDateTime(e.signedAt)} (${e.signatureMethod === 'simples-2fa' ? 'simples + 2FA' : 'simples'})` : ''}
                 </span>
                 {addenda(e.id).map((a) => (
                   <div key={a.id} className="addendum">
@@ -141,7 +142,7 @@ export function HistoryTab({ patient, readOnly }: { patient: Patient; readOnly: 
         <div className="alert warning">
           <Icon name="alert" />
           <div>
-            Assinatura eletrônica simples (login + 2FA + carimbo de tempo + hash). Registros assinados não podem ser
+            Assinatura eletrônica simples (login + carimbo de tempo + hash, e 2FA quando ativado). Registros assinados não podem ser
             alterados, só complementados por adendo. Sem certificado ICP-Brasil, mantenha a via em papel assinada
             (Res. CFO 91/2009).
           </div>

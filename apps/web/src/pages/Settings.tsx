@@ -4,9 +4,12 @@ import { api, post, put } from '../lib/api';
 import { formatDate, formatDateTime } from '../lib/format';
 import { useSession } from '../lib/session';
 import { getThemePref, setThemePref, type ThemePref } from '../lib/theme';
-import { Card, ErrorAlert, Field, Input, PageHead, Select } from '../components/ui';
+import { Card, ErrorAlert, Field, Input, PageHead, Select, Toggle } from '../components/ui';
+import { TwoFactorSetup } from '../components/TwoFactorSetup';
 
-const TABS: [string, string][] = [['consultorio', 'Consultório'], ['aparencia', 'Aparência'], ['suporte', 'Suporte'], ['plano', 'Plano']];
+const TABS: [string, string][] = [
+  ['consultorio', 'Consultório'], ['seguranca', 'Segurança'], ['aparencia', 'Aparência'], ['suporte', 'Suporte'], ['plano', 'Plano'],
+];
 
 export function SettingsPage() {
   const { tab = 'consultorio' } = useParams();
@@ -19,6 +22,7 @@ export function SettingsPage() {
         ))}
       </nav>
       {tab === 'consultorio' && <ClinicTab />}
+      {tab === 'seguranca' && <SecurityTab />}
       {tab === 'aparencia' && <AppearanceTab />}
       {tab === 'suporte' && <SupportTab />}
       {tab === 'plano' && <PlanTab />}
@@ -120,6 +124,100 @@ function ClinicTab() {
         </Card>
       </div>
     </form>
+  );
+}
+
+/**
+ * Segurança: 2FA opcional por usuário (cadastro por QR code) e opção do dono de exigir 2FA
+ * de toda a equipe. Divergência documentada em relação ao PDF (REQ-24).
+ */
+function SecurityTab() {
+  const { me, can, refresh } = useSession();
+  const [enabling, setEnabling] = useState(false);
+  const [disableCode, setDisableCode] = useState('');
+  const [requireMfa, setRequireMfa] = useState<boolean | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (can('clinic:manage')) api('/clinic').then((c) => setRequireMfa(c.requireMfa)).catch(setError);
+  }, [can]);
+
+  async function run(fn: () => Promise<unknown>, done: string) {
+    setError(null);
+    setMsg(null);
+    try {
+      await fn();
+      setMsg(done);
+      await refresh();
+    } catch (err) {
+      setError(err);
+    }
+  }
+
+  const enabled = Boolean(me?.mfa.enabled);
+
+  return (
+    <div className="grid-2">
+      <div className="stack">
+        <Card title={<>Verificação em duas etapas (2FA) {enabled ? <span className="tag success">Ativada</span> : <span className="tag warning">Desativada</span>}</>}>
+          {!enabled && !enabling && (
+            <div className="stack">
+              <p className="muted">
+                Além da senha, o login passa a pedir um código do seu celular. Recomendado para quem acessa prontuários.
+              </p>
+              <div><button className="btn btn-primary" onClick={() => setEnabling(true)}>Ativar 2FA</button></div>
+            </div>
+          )}
+          {!enabled && enabling && (
+            <TwoFactorSetup setupNeeded onDone={() => { setEnabling(false); setMsg('2FA ativado.'); refresh(); }} />
+          )}
+          {enabled && (
+            <div className="stack">
+              <p className="muted">
+                O código é pedido no login, exceto nos dispositivos em que você marcou "não solicitar novamente"
+                ({me?.mfa.trustedDevices ?? 0} lembrado{me?.mfa.trustedDevices === 1 ? '' : 's'}).
+              </p>
+              <div>
+                <button className="btn" disabled={!me?.mfa.trustedDevices}
+                  onClick={() => run(() => post('/auth/trusted-devices/revoke'), 'Dispositivos esquecidos. O código será pedido no próximo login.')}>
+                  Esquecer todos os dispositivos
+                </button>
+              </div>
+              <div className="row wrap" style={{ alignItems: 'flex-end' }}>
+                <Field label="Para desativar, informe um código atual">
+                  <Input inputMode="numeric" maxLength={6} value={disableCode} onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, ''))} />
+                </Field>
+                <button className="btn btn-danger" disabled={disableCode.length !== 6}
+                  onClick={() => run(async () => { await post('/auth/2fa/disable', { code: disableCode }); setDisableCode(''); }, '2FA desativado.')}>
+                  Desativar 2FA
+                </button>
+              </div>
+            </div>
+          )}
+          {msg && <div className="alert success" style={{ marginTop: 12 }}>{msg}</div>}
+          <div style={{ marginTop: 12 }}><ErrorAlert error={error} /></div>
+        </Card>
+      </div>
+      <div className="stack">
+        {can('clinic:manage') && requireMfa !== null && (
+          <Card title="Política do consultório">
+            <div className="row" style={{ alignItems: 'flex-start' }}>
+              <div style={{ flex: 1 }}>
+                <strong>Exigir 2FA de todos os usuários</strong>
+                <p className="subtle">Quem ainda não ativou será obrigado a cadastrar o autenticador no próximo login.</p>
+              </div>
+              <Toggle label="Exigir 2FA" checked={requireMfa}
+                onChange={(v) => run(async () => { await put('/clinic/security', { requireMfa: v }); setRequireMfa(v); },
+                  v ? 'O consultório agora exige 2FA.' : '2FA deixou de ser obrigatório no consultório.')} />
+            </div>
+          </Card>
+        )}
+        <div className="alert warning">
+          Registros clínicos assinados sem 2FA ficam marcados como "assinatura simples". Com 2FA, como "simples + 2FA".
+        </div>
+      </div>
+    </div>
   );
 }
 
