@@ -19,11 +19,34 @@ SaaS de prontuário odontológico multi-consultório (projeto FORGE / Fichaclin 
 
 ## Rodando localmente
 
-Pré-requisitos: Node.js 22+, Docker.
+Pré-requisitos: Node.js 22+, Docker. Primeiro copie as variáveis de exemplo (valores só de desenvolvimento):
+
+```bash
+cp .env.example .env
+```
+
+### Opção 1 — stack completa, igual à produção
+
+Sobe os mesmos serviços da VPS: `web` (Caddy + front), `api`, `migrate`, `db` e `backup`
+([ADR-002](docs/arquitetura/ADR-002-producao.md), [guia de produção](docs/deploy/PRODUCAO.md)).
+
+```bash
+docker compose up -d --build
+```
+
+Acesse http://localhost:8080. Para criar dados fictícios de teste na primeira vez:
+
+```bash
+docker compose exec -e ALLOW_DEV_SEED=1 api node apps/api/dist/db/seed.js
+```
+
+Os backups locais (sem criptografia, só para dados fictícios) aparecem em `./backups`.
+
+### Opção 2 — desenvolvimento com recarga automática
 
 ```bash
 npm install
-docker compose up -d db          # PostgreSQL 16 local
+docker compose up -d db          # só o PostgreSQL (porta 5434)
 npm run db:migrate               # cria tabelas, RLS e gatilhos
 npm run db:seed                  # dados FICTÍCIOS de desenvolvimento
 npm run dev                      # API em :3333 e web em :5173

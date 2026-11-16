@@ -1,7 +1,7 @@
 # ADR-002 — Estrutura de produção
 
 - **Data:** 16/11/2026
-- **Status:** Proposta (aguardando decisão de infraestrutura)
+- **Status:** Aceita (16/11/2026) — implementada em `docker-compose.yml` e `deploy/`; guia em [PRODUCAO.md](../deploy/PRODUCAO.md)
 - **Requisitos de origem:** REQ-13, REQ-27, REQ-28, REQ-29, REQ-08 ([matriz](../conformidade/MATRIZ.md))
 
 ## Contexto
@@ -80,8 +80,8 @@ de container por RDS é troca de configuração.
 |---|---|---|
 | Confirmar que o plano/VPS escolhido fica em datacenter no Brasil | REQ-13 | Pendente — verificar no contrato do provedor |
 | Criptografia do disco/volume do banco | REQ-28 | Pendente — depende do provedor (disco criptografado) |
-| Dockerfiles da `api` e da `web`, arquivo da stack e configuração do Caddy | REQ-27 | Pendente — não estão neste repositório ainda |
-| Rotina de backup + teste de restauração documentado | REQ-29 | Pendente |
+| Dockerfiles da `api`, `web` e `backup`, stack e Caddy | REQ-27 | Feito — `docker-compose.yml`, `deploy/` |
+| Rotina de backup + teste de restauração documentado | REQ-29 | Feito no software (`deploy/backup.sh`, `restore.sh`); falta contratar o storage e registrar os testes mensais |
 | Domínio e DNS | REQ-27 | Pendente |
 | Monitoramento de disponibilidade e alertas | — | Pendente |
 | Plano de resposta a incidentes (aviso ao consultório em 24h) | REQ-09 | Pendente — fora do software |
